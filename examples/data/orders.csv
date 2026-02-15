@@ -1,0 +1,3 @@
+Order ID,Customer Email,Full Name,Total,Currency,Order Date,Status
+1001,sarah@example.com,Sarah Miller,84.50,eur,2026-04-10,Paid
+1002,bad-email,Tom Becker,-12.00,usd,2026-04-11,Paid

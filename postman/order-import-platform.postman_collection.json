@@ -1,0 +1,158 @@
+{
+  "info": {
+    "name": "Order Import Platform Demo",
+    "_postman_id": "6fc82f0c-358a-47aa-9dd7-62c951fbd4b4",
+    "description": "Demo flow for the configurable CSV/JSON e-commerce order import API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "clientId",
+      "value": ""
+    },
+    {
+      "key": "configId",
+      "value": ""
+    },
+    {
+      "key": "batchId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Create Client",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/clients",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"urban-home-store\",\n  \"name\": \"Urban Home Store\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('clientId', body.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Upload YAML Config",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/configs",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"environment\": \"development\",\n  \"format\": \"yaml\",\n  \"content\": \"client: urban-home-store\\nenvironment: development\\nsource:\\n  type: csv\\n  name: partner-order-export\\nfields:\\n  externalOrderId:\\n    type: string\\n    required: true\\n    aliases: [Order ID, order_id, id]\\n  customerName:\\n    type: string\\n    aliases: [Full Name, Customer Name, name]\\n  customerEmail:\\n    type: string\\n    required: true\\n    format: email\\n    aliases: [Customer Email, email]\\n  orderTotal:\\n    type: number\\n    required: true\\n    min: 0\\n    aliases: [Total, Order Total, amount]\\n  currency:\\n    type: string\\n    required: true\\n    enum: [USD, EUR, GBP]\\n    aliases: [Currency, currency_code]\\n  orderDate:\\n    type: string\\n    required: true\\n    format: date\\n    aliases: [Order Date, date]\\n  status:\\n    type: string\\n    required: true\\n    enum: [paid, pending, cancelled, refunded]\\n    aliases: [Status, Order Status]\\ntransforms:\\n  externalOrderId: [trim]\\n  customerName:\\n    - trim\\n    - type: default\\n      value: Unknown Customer\\n  customerEmail: [trim, lowercase]\\n  orderTotal: [trim, numberCoerce]\\n  currency:\\n    - trim\\n    - uppercase\\n    - type: default\\n      value: USD\\n  orderDate: [trim, dateNormalize]\\n  status:\\n    - trim\\n    - lowercase\\n    - type: enumMap\\n      map:\\n        paid: paid\\n        complete: paid\\n        completed: paid\\n        pending: pending\\n        cancelled: cancelled\\n        canceled: cancelled\\n        refunded: refunded\\nsettings:\\n  allowPartialSuccess: true\\n  maxErrors: 20\\n  previewLimit: 10\\n\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('configId', body.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dry-Run CSV Import",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/imports/dry-run",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"environment\": \"development\",\n  \"sourceType\": \"csv\",\n  \"csvContent\": \"Order ID,Customer Email,Full Name,Total,Currency,Order Date,Status\\n1001,sarah@example.com,Sarah Miller,84.50,eur,2026-04-10,Paid\\n1002,bad-email,Tom Becker,-12.00,usd,2026-04-11,Paid\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('batchId', body.batchId);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Commit CSV Import",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/imports",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"environment\": \"development\",\n  \"sourceType\": \"csv\",\n  \"csvContent\": \"Order ID,Customer Email,Full Name,Total,Currency,Order Date,Status\\n1001,sarah@example.com,Sarah Miller,84.50,eur,2026-04-10,Paid\\n1002,bad-email,Tom Becker,-12.00,usd,2026-04-11,Paid\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('batchId', body.batchId);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "View Batch",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/batches/{{batchId}}"
+      }
+    },
+    {
+      "name": "List Orders",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/orders?clientId={{clientId}}"
+      }
+    }
+  ]
+}

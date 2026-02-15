@@ -1,0 +1,100 @@
+client: urban-home-store
+environment: development
+version: 1
+source:
+  type: csv
+  name: partner-order-export
+fields:
+  externalOrderId:
+    type: string
+    required: true
+    aliases:
+      - Order ID
+      - order_id
+      - id
+  customerName:
+    type: string
+    aliases:
+      - Full Name
+      - Customer Name
+      - name
+  customerEmail:
+    type: string
+    required: true
+    format: email
+    aliases:
+      - Customer Email
+      - email
+  orderTotal:
+    type: number
+    required: true
+    min: 0
+    aliases:
+      - Total
+      - Order Total
+      - amount
+  currency:
+    type: string
+    required: true
+    enum:
+      - USD
+      - EUR
+      - GBP
+    aliases:
+      - Currency
+      - currency_code
+  orderDate:
+    type: string
+    required: true
+    format: date
+    aliases:
+      - Order Date
+      - date
+  status:
+    type: string
+    required: true
+    enum:
+      - paid
+      - pending
+      - cancelled
+      - refunded
+    aliases:
+      - Status
+      - Order Status
+transforms:
+  externalOrderId:
+    - trim
+  customerName:
+    - trim
+    - type: default
+      value: Unknown Customer
+  customerEmail:
+    - trim
+    - lowercase
+  orderTotal:
+    - trim
+    - numberCoerce
+  currency:
+    - trim
+    - uppercase
+    - type: default
+      value: USD
+  orderDate:
+    - trim
+    - dateNormalize
+  status:
+    - trim
+    - lowercase
+    - type: enumMap
+      map:
+        paid: paid
+        complete: paid
+        completed: paid
+        pending: pending
+        cancelled: cancelled
+        canceled: cancelled
+        refunded: refunded
+settings:
+  allowPartialSuccess: true
+  maxErrors: 20
+  previewLimit: 10
