@@ -15,8 +15,28 @@ export async function requestApp(
   url: string,
   body?: unknown
 ): Promise<TestResponse> {
+  const payload = body === undefined ? "" : JSON.stringify(body);
+  return requestAppWithPayload(app, method, url, payload, "application/json");
+}
+
+export async function requestRawApp(
+  app: Express,
+  method: string,
+  url: string,
+  payload: string,
+  contentType = "application/json"
+): Promise<TestResponse> {
+  return requestAppWithPayload(app, method, url, payload, contentType);
+}
+
+async function requestAppWithPayload(
+  app: Express,
+  method: string,
+  url: string,
+  payload: string,
+  contentType: string
+): Promise<TestResponse> {
   return new Promise((resolve, reject) => {
-    const payload = body === undefined ? "" : JSON.stringify(body);
     let sent = false;
     const req = new Readable({
       read() {
@@ -41,7 +61,7 @@ export async function requestApp(
     req.headers =
       payload.length > 0
         ? {
-            "content-type": "application/json",
+            "content-type": contentType,
             "content-length": String(Buffer.byteLength(payload))
           }
         : {};

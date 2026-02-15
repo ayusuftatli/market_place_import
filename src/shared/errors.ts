@@ -24,7 +24,7 @@ export function conflict(message: string, details?: unknown): HttpError {
 }
 
 export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
-  const statusCode = error instanceof HttpError ? error.statusCode : 500;
+  const statusCode = getErrorStatusCode(error);
   const payload: Record<string, unknown> = {
     error: {
       message:
@@ -47,3 +47,31 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
 
   res.status(statusCode).json(payload);
 };
+
+function getErrorStatusCode(error: unknown): number {
+  if (error instanceof HttpError) {
+    return error.statusCode;
+  }
+
+  if (hasHttpStatus(error, "statusCode")) {
+    return error.statusCode;
+  }
+
+  if (hasHttpStatus(error, "status")) {
+    return error.status;
+  }
+
+  return 500;
+}
+
+function hasHttpStatus<T extends "status" | "statusCode">(
+  error: unknown,
+  field: T
+): error is Record<T, number> {
+  if (typeof error !== "object" || error === null || !(field in error)) {
+    return false;
+  }
+
+  const value = (error as Record<T, unknown>)[field];
+  return typeof value === "number" && value >= 400 && value < 600;
+}

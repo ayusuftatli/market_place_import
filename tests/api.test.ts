@@ -1,7 +1,7 @@
 import { Types } from "mongoose";
 import { describe, expect, it } from "vitest";
 import { demoConfig, createTestContext, mixedCsv } from "./helpers";
-import { requestApp } from "./httpTestClient";
+import { requestApp, requestRawApp } from "./httpTestClient";
 
 async function createClient(app: ReturnType<typeof createTestContext>["app"]) {
   const response = await requestApp(app, "POST", "/clients", {
@@ -34,6 +34,20 @@ describe("order import API", () => {
     const response = await requestApp(app, "GET", "/health");
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: "ok" });
+  });
+
+  it("returns a client error for malformed JSON request bodies", async () => {
+    const { app } = createTestContext();
+
+    const response = await requestRawApp(
+      app,
+      "POST",
+      "/imports/dry-run",
+      '{"clientId":'
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.message).toMatch(/JSON|parse|Unexpected/i);
   });
 
   it("creates, rejects duplicate, lists, and validates clients", async () => {
