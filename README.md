@@ -1,272 +1,129 @@
-# Configurable Order Import Platform
+# Marketplace Import Portal
 
-Backend MVP for small e-commerce teams that receive messy order exports from Shopify, WooCommerce, Amazon, wholesale partners, or legacy spreadsheets. The API lets operations teams define versioned import rules, preview CSV/JSON files, see row-level validation errors, and commit only the normalized orders that pass validation.
+Single-workspace import portal for client-facing order review. The app focuses on realistic Amazon, Shopify, and generic spreadsheet exports, then rolls those files into normalized order summaries with line-item drill-down.
 
-## Business Problem
+## What It Does
 
-Small merchants often reconcile orders from several systems with different column names, date formats, status labels, and currency casing. One partner might send `Order ID`, another sends `order_id`, and a third sends `id`; some exports use `Paid`, others use `complete`. This project turns those inconsistent files into a repeatable, auditable import flow without hard-coding a new parser for every client.
+- Preview or commit marketplace imports from:
+  - Amazon flat-file order reports
+  - Shopify order export CSVs
+  - Generic CSV, TSV, JSON, and Excel spreadsheets
+- Normalize line-based source rows into:
+  - `OrderSummary`
+  - `OrderLine`
+- Keep recent import history, row-level validation errors, and stored line-item detail in one place.
+- Hide multi-client and environment setup from the main UI.
+- Offer a secondary advanced drawer for raw YAML/JSON template overrides.
 
-## Architecture
+## Main API
 
-- Express exposes an API-first workflow for clients, configs, imports, batches, and orders.
-- Import configs are YAML or JSON templates stored by `clientId + environment + version`.
-- CSV and JSON parsers produce plain source records for the shared pipeline.
-- The transformer maps aliases, applies explicit configured transforms, and preserves the original source record.
-- Ajv validates normalized records from a schema generated from the active config.
-- Dry-runs store import batch history without writing orders; committed imports store valid normalized orders when policy allows.
-- MongoDB/Mongoose back production storage, while the in-memory store keeps tests and demos fast.
+- `GET /health`
+- `GET /templates`
+- `GET /templates/:key`
+- `PUT /templates/:key/override`
+- `DELETE /templates/:key/override`
+- `POST /imports/preview`
+- `POST /imports`
+- `GET /imports`
+- `GET /imports/:id`
+- `GET /orders`
+- `GET /orders/:id/lines`
+
+Import requests use the new public shape:
+
+```json
+{
+  "templateKey": "amazon",
+  "inputKind": "delimited",
+  "fileName": "amazon-orders-report.tsv",
+  "content": "..."
+}
+```
+
+Or, for browser-parsed JSON / Excel:
+
+```json
+{
+  "templateKey": "generic",
+  "inputKind": "records",
+  "fileName": "generic-marketplace-orders.xlsx",
+  "records": [
+    {
+      "Marketplace Order ID": "GEN-9101"
+    }
+  ]
+}
+```
 
 ## Setup
 
-Use Node.js 18 or newer; the demo script uses the built-in `fetch` API.
+Use Node.js 18 or newer.
 
 ```bash
 npm install
-cp .env.example .env
 npm run build
 npm test
 ```
 
-For a persistent local run, start MongoDB and set `MONGODB_URI` in `.env`.
-
-```bash
-npm run dev
-```
-
-For a quick non-persistent demo without MongoDB:
+For a non-persistent local demo:
 
 ```bash
 DATA_STORE=memory npm run dev
 ```
 
-Health check:
+The API listens on `http://localhost:3000` and the built UI is served at `http://localhost:3000/ui`.
+
+For a split local workflow:
 
 ```bash
-curl http://localhost:3000/health
+DATA_STORE=memory npm run dev:api
+npm run dev:ui
 ```
 
 ## Demo Assets
 
-- Config: [examples/configs/urban-home-orders.yaml](examples/configs/urban-home-orders.yaml)
-- CSV data: [examples/data/orders.csv](examples/data/orders.csv)
-- JSON data: [examples/data/orders.json](examples/data/orders.json)
-- Postman collection: [postman/order-import-platform.postman_collection.json](postman/order-import-platform.postman_collection.json)
+- Amazon TSV: [examples/data/amazon-orders-report.tsv](examples/data/amazon-orders-report.tsv)
+- Shopify CSV: [examples/data/shopify-orders-export.csv](examples/data/shopify-orders-export.csv)
+- Generic JSON: [examples/data/generic-marketplace-orders.json](examples/data/generic-marketplace-orders.json)
 
-The demo client is:
+These source shapes are modeled on official docs:
 
-```json
-{
-  "code": "urban-home-store",
-  "name": "Urban Home Store"
-}
-```
+- Shopify order export reference: https://help.shopify.com/en/manual/fulfillment/managing-orders/exporting-orders
+- Amazon order reports reference: https://developer-docs.amazon.com/sp-api/docs/report-type-values-order
 
-The CSV includes one valid row and one invalid row:
+## Example Flow
 
-```csv
-Order ID,Customer Email,Full Name,Total,Currency,Order Date,Status
-1001,sarah@example.com,Sarah Miller,84.50,eur,2026-04-10,Paid
-1002,bad-email,Tom Becker,-12.00,usd,2026-04-11,Paid
-```
-
-## Demo Flow
-
-Start the API with `DATA_STORE=memory npm run dev`, then run this from another terminal:
+Preview Amazon TSV data:
 
 ```bash
-node <<'NODE'
-const fs = require("node:fs");
-
-const baseUrl = process.env.BASE_URL ?? "http://localhost:3000";
-
-async function request(path, options = {}) {
-  const response = await fetch(`${baseUrl}${path}`, {
-    method: options.method ?? "POST",
-    headers: options.body ? { "Content-Type": "application/json" } : undefined,
-    body: options.body ? JSON.stringify(options.body) : undefined
-  });
-  const body = await response.json();
-
-  if (!response.ok) {
-    throw new Error(`${response.status} ${JSON.stringify(body)}`);
-  }
-
-  return body;
-}
-
-(async () => {
-  const client = await request("/clients", {
-    body: {
-      code: "urban-home-store",
-      name: "Urban Home Store"
-    }
-  });
-
-  const config = await request("/configs", {
-    body: {
-      clientId: client.id,
-      environment: "development",
-      format: "yaml",
-      content: fs.readFileSync("examples/configs/urban-home-orders.yaml", "utf8")
-    }
-  });
-
-  const csvContent = fs.readFileSync("examples/data/orders.csv", "utf8");
-  const dryRun = await request("/imports/dry-run", {
-    body: {
-      clientId: client.id,
-      environment: "development",
-      sourceType: "csv",
-      csvContent
-    }
-  });
-
-  const commit = await request("/imports", {
-    body: {
-      clientId: client.id,
-      environment: "development",
-      sourceType: "csv",
-      csvContent
-    }
-  });
-
-  const batch = await request(`/batches/${commit.batchId}`, { method: "GET" });
-  const orders = await request(`/orders?clientId=${client.id}`, { method: "GET" });
-
-  console.log(JSON.stringify({
-    clientId: client.id,
-    configVersion: config.version,
-    dryRun,
-    commit,
-    batch,
-    orders
-  }, null, 2));
-})().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
-NODE
-```
-
-Expected dry-run behavior:
-
-- Row 1 passes.
-- `Order ID` maps to `externalOrderId`.
-- `Customer Email` maps to `customerEmail`.
-- `eur` transforms to `EUR`.
-- `Paid` transforms to `paid`.
-- Row 2 fails because the email is invalid and the total is negative.
-
-The normalized preview contains the valid row:
-
-```json
+curl -X POST http://localhost:3000/imports/preview \
+  -H "Content-Type: application/json" \
+  -d @- <<'JSON'
 {
-  "externalOrderId": "1001",
-  "customerName": "Sarah Miller",
-  "customerEmail": "sarah@example.com",
-  "orderTotal": 84.5,
-  "currency": "EUR",
-  "orderDate": "2026-04-10",
-  "status": "paid"
+  "templateKey": "amazon",
+  "inputKind": "delimited",
+  "fileName": "amazon-orders-report.tsv",
+  "content": "amazon-order-id\tmerchant-order-id\tpurchase-date\torder-status\tfulfillment-channel\tsales-channel\torder-channel\tproduct-name\tsku\tasin\titem-status\tquantity\tcurrency\titem-price\titem-tax\tshipping-price\tshipping-tax\titem-promotion-discount\tship-promotion-discount\tship-city\tship-country\n112-9739103-000001\tM-10001\t2026-04-10T09:15:00Z\tshipped\tAFN\tAmazon.de\tAmazon.de\tOrganic Cotton Sheet Set\tOCH-QUEEN\tB0TESTAMZ1\tshipped\t1\tEUR\t89.90\t17.08\t0.00\t0.00\t10.00\t0.00\tBerlin\tDE"
 }
+JSON
 ```
 
-The validation output includes row-level errors like:
+You should get:
 
-```json
-{
-  "totalRecords": 2,
-  "validRecords": 1,
-  "invalidRecords": 1,
-  "storedOrderCount": 0,
-  "errors": [
-    {
-      "row": 2,
-      "field": "customerEmail",
-      "message": "customerEmail must match format 'email'",
-      "value": "bad-email"
-    },
-    {
-      "row": 2,
-      "field": "orderTotal",
-      "message": "orderTotal must be >= 0",
-      "value": -12
-    }
-  ]
-}
-```
+- `templateVersion`
+- row counts
+- `orderPreview`
+- `linePreview`
+- row-level `errors`
 
-With `allowPartialSuccess: true`, the committed import stores the valid row and skips the invalid row.
+## UI Notes
 
-## Main Endpoints
+The React UI is built as a client-facing portal:
 
-- `GET /health`
-- `POST /clients`
-- `GET /clients`
-- `GET /clients/:id`
-- `POST /configs`
-- `GET /configs?clientId=...&environment=...`
-- `GET /configs/:id`
-- `POST /configs/:id/promote`
-- `POST /imports/dry-run`
-- `POST /imports`
-- `GET /batches`
-- `GET /batches/:id`
-- `GET /orders?clientId=...`
-- `GET /orders/:id`
-
-## Import Request Shapes
-
-CSV dry-run or commit:
-
-```json
-{
-  "clientId": "...",
-  "environment": "development",
-  "sourceType": "csv",
-  "csvContent": "Order ID,Customer Email,Full Name,Total,Currency,Order Date,Status\n1001,sarah@example.com,Sarah Miller,84.50,eur,2026-04-10,Paid"
-}
-```
-
-JSON dry-run or commit:
-
-```json
-{
-  "clientId": "...",
-  "environment": "development",
-  "sourceType": "json",
-  "records": [
-    {
-      "order_id": "1001",
-      "email": "sarah@example.com",
-      "Customer Name": "Sarah Miller",
-      "Order Total": "84.50",
-      "Currency": "eur",
-      "Order Date": "2026-04-10",
-      "Status": "complete"
-    }
-  ]
-}
-```
-
-## Postman
-
-Import [postman/order-import-platform.postman_collection.json](postman/order-import-platform.postman_collection.json), start the API with `DATA_STORE=memory npm run dev`, and run the collection in order:
-
-1. Create Client
-2. Upload YAML Config
-3. Dry-Run CSV Import
-4. Dry-Run JSON Import
-5. Commit CSV Import
-6. View Batch
-7. List Orders
-
-The collection stores `clientId`, `configId`, and `batchId` as collection variables as the flow runs.
-
-## Tradeoffs And Future Improvements
-
-- Auth, Excel upload, approval workflows, and a React UI are intentionally outside v1.
-- File upload is represented as request-body CSV text for the MVP; a multipart upload adapter can be added around the same parser.
-- Tests use an in-memory store to stay fast and deterministic. Production mode uses Mongoose models and requires MongoDB.
-- The transform vocabulary is deliberately small so operational users can reason about what each config does.
-- Future improvements could add authenticated client workspaces, multipart uploads, Excel parsing, duplicate order detection, richer status mapping, and a lightweight review UI before commit.
+- choose one template
+- drop in a file
+- preview or commit
+- inspect order summaries
+- click through to line items
+- review recent imports
+- open the advanced drawer only when raw template editing is actually needed

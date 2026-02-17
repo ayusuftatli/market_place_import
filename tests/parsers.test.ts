@@ -1,74 +1,66 @@
 import { describe, expect, it } from "vitest";
 import {
-  parseCsvRecords,
+  applyTemplatePreprocessing,
+  detectDelimiter,
+  parseDelimitedContent,
   parseJsonRecords,
-  parseSourceRecords
+  parseSourceInput,
 } from "../src/imports/sourceParsers";
+import { getBuiltInTemplate } from "../src/templates/builtInTemplates";
+import { shopifyCsv } from "./helpers";
 
 describe("source parsers", () => {
-  it("parses CSV records with headers", () => {
-    const records = parseCsvRecords(" Order ID ,Total\n1001,84.50");
-
-    expect(records).toEqual([{ "Order ID": "1001", Total: "84.50" }]);
+  it("detects TSV and CSV delimiters", () => {
+    expect(detectDelimiter("a\tb\n1\t2", "orders.tsv")).toBe("\t");
+    expect(detectDelimiter("a,b\n1,2", "orders.csv")).toBe(",");
   });
 
-  it("parses CSV content through the source parser", () => {
-    const records = parseSourceRecords({
-      sourceType: "csv",
-      content: "Order ID,Total\n1001,84.50"
+  it("parses TSV and reports the source kind", () => {
+    const parsed = parseDelimitedContent("a\tb\n1\t2", "orders.tsv");
+
+    expect(parsed.sourceKind).toBe("tsv");
+    expect(parsed.records).toEqual([{ a: "1", b: "2" }]);
+  });
+
+  it("parses records input through the unified source parser", () => {
+    const parsed = parseSourceInput({
+      inputKind: "records",
+      fileName: "orders.json",
+      records: [{ id: "1001" }],
     });
 
-    expect(records).toEqual([{ "Order ID": "1001", Total: "84.50" }]);
+    expect(parsed.sourceKind).toBe("json");
+    expect(parsed.records).toEqual([{ id: "1001" }]);
   });
 
-  it("parses JSON records", () => {
-    const records = parseJsonRecords([{ id: "1001" }]);
+  it("carries Shopify order-level values across repeated line rows", () => {
+    const template = getBuiltInTemplate("shopify");
+    if (!template) {
+      throw new Error("Expected built-in Shopify template");
+    }
 
-    expect(records).toEqual([{ id: "1001" }]);
-  });
+    const parsed = parseDelimitedContent(shopifyCsv, "shopify.csv");
+    const records = applyTemplatePreprocessing(parsed.records, template);
 
-  it("parses JSON records through the source parser", () => {
-    const records = parseSourceRecords({
-      sourceType: "json",
-      records: [{ id: "1001" }]
+    expect(records[1]).toMatchObject({
+      Id: "5001001",
+      Name: "#1001",
+      Email: "olivia@example.com",
+      Currency: "EUR",
+      "Shipping Country": "DE",
     });
-
-    expect(records).toEqual([{ id: "1001" }]);
   });
 
-  it("rejects empty JSON input", () => {
+  it("rejects empty and malformed JSON record payloads", () => {
     expect(() => parseJsonRecords([])).toThrow("at least one record");
-  });
-
-  it("rejects JSON input that is not an array of objects", () => {
-    expect(() => parseJsonRecords({ id: "1001" })).toThrow(
-      "records must be an array of objects"
-    );
     expect(() => parseJsonRecords([{ id: "1001" }, null])).toThrow(
-      "records[1] must be an object"
+      "records[1] must be an object",
     );
   });
 
-  it("rejects empty CSV input", () => {
-    expect(() => parseCsvRecords("")).toThrow("non-empty string");
-    expect(() => parseCsvRecords("Order ID,Total\n")).toThrow(
-      "at least one data row"
+  it("rejects malformed delimited content", () => {
+    expect(() => parseDelimitedContent('"unterminated', "orders.csv")).toThrow(
+      "Malformed delimited content",
     );
-  });
-
-  it("rejects blank CSV headers", () => {
-    expect(() => parseCsvRecords("Order ID,\n1001,84.50")).toThrow(
-      "CSV header at column 2 must not be empty"
-    );
-  });
-
-  it("rejects malformed CSV input", () => {
-    expect(() => parseCsvRecords('"unterminated')).toThrow("Malformed CSV");
-  });
-
-  it("rejects unsupported source types", () => {
-    expect(() =>
-      parseSourceRecords({ sourceType: "xml", records: [{ id: "1001" }] })
-    ).toThrow("sourceType must be 'csv' or 'json'");
   });
 });

@@ -3,13 +3,11 @@ import path from "node:path";
 import cors from "cors";
 import express, { type Express } from "express";
 import helmet from "helmet";
-import { createBatchRouter } from "./batches/batchRoutes";
-import { createClientRouter } from "./clients/clientRoutes";
-import { createConfigRouter } from "./configs/configRoutes";
 import { createImportRouter } from "./imports/importRoutes";
 import { createOrderRouter } from "./orders/orderRoutes";
 import { getDefaultDataStore, type DataStore } from "./shared/dataStore";
 import { errorHandler } from "./shared/errors";
+import { createTemplateRouter } from "./templates/templateRoutes";
 
 export interface CreateAppOptions {
   store?: DataStore;
@@ -36,10 +34,8 @@ export function createApp(options: CreateAppOptions = {}) {
     res.json({ status: "ok" });
   });
 
-  app.use("/clients", createClientRouter(store));
-  app.use("/configs", createConfigRouter(store));
+  app.use("/templates", createTemplateRouter(store));
   app.use("/imports", createImportRouter(store));
-  app.use("/batches", createBatchRouter(store));
   app.use("/orders", createOrderRouter(store));
 
   mountUi(app, options.uiDistPath);

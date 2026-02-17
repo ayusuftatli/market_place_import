@@ -1,40 +1,34 @@
 import { describe, expect, it } from "vitest";
 import { buildImportRequest } from "../ui/src/api";
-import { DEMO_CSV } from "../ui/src/demoData";
-import { createCsvSource, createJsonSource } from "../ui/src/importFiles";
+import { AMAZON_SAMPLE_TSV, GENERIC_SAMPLE_JSON } from "../ui/src/demoData";
+import { createDelimitedSource, createRecordSource } from "../ui/src/importFiles";
 
 describe("UI API request builders", () => {
-  it("builds CSV import payloads for the existing API", () => {
+  it("builds delimited import payloads for Amazon and Shopify-style files", () => {
     const payload = buildImportRequest({
-      clientId: "client-1",
-      environment: "development",
-      configVersion: 3,
-      source: createCsvSource("orders.csv", DEMO_CSV),
-    });
-
-    expect(payload).toMatchObject({
-      clientId: "client-1",
-      environment: "development",
-      configVersion: 3,
-      sourceType: "csv",
-      csvContent: DEMO_CSV,
-    });
-    expect(payload).not.toHaveProperty("records");
-  });
-
-  it("builds JSON import payloads for browser-parsed Excel records", () => {
-    const payload = buildImportRequest({
-      clientId: "client-1",
-      environment: "production",
-      source: createJsonSource("orders.xlsx", [{ order_id: "1001" }]),
+      templateKey: "amazon",
+      source: createDelimitedSource("orders.tsv", AMAZON_SAMPLE_TSV, "tsv"),
     });
 
     expect(payload).toEqual({
-      clientId: "client-1",
-      environment: "production",
-      sourceType: "json",
-      records: [{ order_id: "1001" }],
+      templateKey: "amazon",
+      inputKind: "delimited",
+      fileName: "orders.tsv",
+      content: AMAZON_SAMPLE_TSV,
     });
-    expect(payload).not.toHaveProperty("configVersion");
+  });
+
+  it("builds records payloads for browser-parsed JSON and Excel uploads", () => {
+    const payload = buildImportRequest({
+      templateKey: "generic",
+      source: createRecordSource("orders.xlsx", GENERIC_SAMPLE_JSON, "excel"),
+    });
+
+    expect(payload).toEqual({
+      templateKey: "generic",
+      inputKind: "records",
+      fileName: "orders.xlsx",
+      records: GENERIC_SAMPLE_JSON,
+    });
   });
 });

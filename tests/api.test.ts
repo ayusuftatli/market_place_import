@@ -1,43 +1,8 @@
-import { Types } from "mongoose";
 import { describe, expect, it } from "vitest";
-import { demoConfig, createTestContext, mixedCsv, validCsv } from "./helpers";
-import { requestApp, requestRawApp } from "./httpTestClient";
+import { createTestContext, amazonTsv, genericCsv, genericMixedJson, shopifyCsv } from "./helpers";
+import { requestApp } from "./httpTestClient";
 
-async function createClient(
-  app: ReturnType<typeof createTestContext>["app"],
-  code = "urban-home-store",
-  name = "Urban Home Store"
-) {
-  const response = await requestApp(app, "POST", "/clients", {
-    code,
-    name
-  });
-
-  return response.body as { id: string; code: string; name: string };
-}
-
-async function uploadConfig(
-  app: ReturnType<typeof createTestContext>["app"],
-  clientId: string,
-  config = demoConfig()
-) {
-  const response = await requestApp(app, "POST", "/configs", {
-    clientId,
-    environment: config.environment,
-    format: "json",
-    config
-  });
-
-  return response.body as { id: string; version: number };
-}
-
-function usdOnlyCurrencyConfig() {
-  const config = demoConfig();
-  config.fields.currency.enum = ["USD"];
-  return config;
-}
-
-describe("order import API", () => {
+describe("marketplace import API", () => {
   it("returns health status", async () => {
     const { app } = createTestContext();
 
@@ -46,615 +11,288 @@ describe("order import API", () => {
     expect(response.body).toEqual({ status: "ok" });
   });
 
-  it("returns a client error for malformed JSON request bodies", async () => {
+  it("lists templates and returns template detail", async () => {
     const { app } = createTestContext();
 
-    const response = await requestRawApp(
-      app,
-      "POST",
-      "/imports/dry-run",
-      '{"clientId":'
+    const list = await requestApp(app, "GET", "/templates");
+    expect(list.status).toBe(200);
+    expect(list.body.templates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "amazon" }),
+        expect.objectContaining({ key: "shopify" }),
+        expect.objectContaining({ key: "generic" }),
+      ]),
     );
 
-    expect(response.status).toBe(400);
-    expect(response.body.error.message).toMatch(/JSON|parse|Unexpected/i);
-  });
-
-  it("creates, rejects duplicate, lists, and validates clients", async () => {
-    const { app } = createTestContext();
-
-    const created = await requestApp(app, "POST", "/clients", {
-      code: "urban-home-store",
-      name: "Urban Home Store"
-    });
-
-    expect(created.status).toBe(201);
-    expect(created.body.code).toBe("urban-home-store");
-    expect(created.body.name).toBe("Urban Home Store");
-
-    const detail = await requestApp(app, "GET", `/clients/${created.body.id}`);
+    const detail = await requestApp(app, "GET", "/templates/shopify");
     expect(detail.status).toBe(200);
     expect(detail.body).toMatchObject({
-      id: created.body.id,
-      code: "urban-home-store",
-      name: "Urban Home Store"
-    });
-
-    const duplicate = await requestApp(app, "POST", "/clients", {
-      code: "urban-home-store",
-      name: "Urban Home Store"
-    });
-    expect(duplicate.status).toBe(409);
-
-    const list = await requestApp(app, "GET", "/clients");
-    expect(list.status).toBe(200);
-    expect(list.body.clients).toHaveLength(1);
-
-    const invalid = await requestApp(app, "GET", "/clients/not-an-id");
-    expect(invalid.status).toBe(400);
-    expect(invalid.body).toEqual({
-      error: {
-        message: "Invalid id"
-      }
-    });
-
-    const missing = await requestApp(
-      app,
-      "GET",
-      `/clients/${new Types.ObjectId().toString()}`
-    );
-    expect(missing.status).toBe(404);
-    expect(missing.body).toEqual({
-      error: {
-        message: "Client not found"
-      }
+      template: {
+        key: "shopify",
+        label: "Shopify Order Export",
+      },
+      builtInContent: {
+        yaml: expect.stringContaining("key: shopify"),
+        json: expect.stringContaining('"key": "shopify"'),
+      },
+      override: null,
     });
   });
 
-  it("uploads YAML and JSON configs, increments versions, filters, and promotes", async () => {
+  it("saves and removes template overrides", async () => {
     const { app } = createTestContext();
-    const client = await createClient(app);
-    const yaml = `
-environment: development
-source:
-  type: csv
-fields:
-  externalOrderId:
+    const updatedContent = `
+key: generic
+label: Generic Spreadsheet
+description: Custom agency flavor
+acceptedFileKinds:
+  - csv
+  - json
+sampleFileName: generic-marketplace-orders.csv
+templateVersion: 1
+lineFields:
+  sourceOrderId:
     type: string
     required: true
-    aliases: ["Order ID"]
+    aliases:
+      - Order ID
+  orderDate:
+    type: string
+    required: true
+    format: date
+    aliases:
+      - Order Date
+  orderStatus:
+    type: string
+    required: true
+    aliases:
+      - Status
+  currency:
+    type: string
+    required: true
+    aliases:
+      - Currency
+  productTitle:
+    type: string
+    required: true
+    aliases:
+      - Product
+  quantity:
+    type: number
+    required: true
+    min: 1
+    aliases:
+      - Quantity
+orderRollup:
+  keyField: sourceOrderId
+  fields:
+    sourceOrderId:
+      type: string
+      required: true
+      fromLineField: sourceOrderId
+      aggregate: first
+    salesChannel:
+      type: string
+      value: custom
+    orderDate:
+      type: string
+      required: true
+      format: date
+      fromLineField: orderDate
+      aggregate: first
+    orderStatus:
+      type: string
+      required: true
+      fromLineField: orderStatus
+      aggregate: first
+    currency:
+      type: string
+      required: true
+      fromLineField: currency
+      aggregate: first
+    subtotalAmount:
+      type: number
+      fromLineField: quantity
+      aggregate: sum
+    shippingAmount:
+      type: number
+      value: 0
+    taxAmount:
+      type: number
+      value: 0
+    discountAmount:
+      type: number
+      value: 0
+    totalAmount:
+      type: number
+    itemQuantity:
+      type: number
+      fromLineField: quantity
+      aggregate: sum
+    lineCount:
+      type: number
+      aggregate: count
+settings:
+  allowPartialSuccess: true
+  maxErrors: 20
+  previewLimit: 5
 `;
 
-    const yamlConfig = await requestApp(app, "POST", "/configs", {
-      clientId: client.id,
-      environment: "development",
+    const saved = await requestApp(app, "PUT", "/templates/generic/override", {
       format: "yaml",
-      content: yaml
+      content: updatedContent,
     });
 
-    expect(yamlConfig.status).toBe(201);
-    expect(yamlConfig.body.version).toBe(1);
+    expect(saved.status).toBe(200);
+    expect(saved.body.override).toMatchObject({
+      format: "yaml",
+      templateVersion: 2,
+    });
+    expect(saved.body.template.description).toBe("Custom agency flavor");
 
-    const jsonConfig = await uploadConfig(app, client.id);
-    expect(jsonConfig.version).toBe(2);
-
-    const list = await requestApp(
-      app,
-      "GET",
-      `/configs?clientId=${client.id}&environment=development`
-    );
-    expect(list.status).toBe(200);
-    expect(list.body.configs).toHaveLength(2);
-
-    const promoted = await requestApp(
-      app,
-      "POST",
-      `/configs/${jsonConfig.id}/promote`
-    );
-    expect(promoted.status).toBe(201);
-    expect(promoted.body.environment).toBe("production");
-    expect(promoted.body.promotedFromVersion).toBe(2);
+    const restored = await requestApp(app, "DELETE", "/templates/generic/override");
+    expect(restored.status).toBe(200);
+    expect(restored.body.override).toBeNull();
   });
 
-  it("runs a dry-run with valid CSV, stores a dry-run batch, and creates no orders", async () => {
-    const { app, store } = createTestContext();
-    const client = await createClient(app);
-    await uploadConfig(app, client.id);
+  it("previews Amazon TSV imports with rolled-up summaries", async () => {
+    const { app } = createTestContext();
 
-    const result = await requestApp(app, "POST", "/imports/dry-run", {
-      clientId: client.id,
-      environment: "development",
-      sourceType: "csv",
-      csvContent: validCsv
+    const preview = await requestApp(app, "POST", "/imports/preview", {
+      templateKey: "amazon",
+      inputKind: "delimited",
+      fileName: "amazon-orders-report.tsv",
+      content: amazonTsv,
     });
 
-    expect(result.status).toBe(201);
-    expect(result.body).toMatchObject({
-      configVersion: 1,
-      totalRecords: 1,
-      validRecords: 1,
+    expect(preview.status).toBe(201);
+    expect(preview.body).toMatchObject({
+      templateVersion: 1,
+      totalRecords: 3,
+      validRecords: 3,
       invalidRecords: 0,
       storedOrderCount: 0,
-      errors: []
+      storedLineCount: 0,
     });
-    expect(result.body.normalizedPreview).toEqual([
-      expect.objectContaining({
-        externalOrderId: "1001",
-        customerEmail: "sarah@example.com",
-        customerName: "Sarah Miller",
-        orderTotal: 84.5,
-        currency: "EUR",
-        orderDate: "2026-04-10",
-        status: "paid"
-      })
-    ]);
-    expect(result.body.normalizedPreview[0]).not.toHaveProperty("sourceRecord");
-
-    const batch = await store.batches.findById(result.body.batchId);
-    expect(batch).toMatchObject({
-      clientId: client.id,
-      mode: "dry-run",
-      sourceType: "csv",
-      totalRecords: 1,
-      validRecords: 1,
-      invalidRecords: 0,
-      storedRecords: 0,
-      errors: []
-    });
-    await expect(store.orders.count()).resolves.toBe(0);
-  });
-
-  it("runs a dry-run with mixed rows without storing normalized orders", async () => {
-    const { app, store } = createTestContext();
-    const client = await createClient(app);
-    await uploadConfig(app, client.id);
-
-    const result = await requestApp(app, "POST", "/imports/dry-run", {
-      clientId: client.id,
-      environment: "development",
-      sourceType: "csv",
-      csvContent: mixedCsv
-    });
-
-    expect(result.status).toBe(201);
-    expect(result.body).toMatchObject({
-      totalRecords: 2,
-      validRecords: 1,
-      invalidRecords: 1,
-      storedOrderCount: 0,
-      configVersion: 1
-    });
-    expect(result.body.errors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ row: 2, field: "customerEmail" }),
-        expect.objectContaining({ row: 2, field: "orderTotal" })
-      ])
-    );
-    expect(result.body.normalizedPreview[0]).toMatchObject({
-      externalOrderId: "1001",
-      customerEmail: "sarah@example.com",
-      orderTotal: 84.5,
-      currency: "EUR",
-      status: "paid"
-    });
-    await expect(store.orders.count()).resolves.toBe(0);
-  });
-
-  it("uses an explicit config version for dry-runs when supplied", async () => {
-    const { app } = createTestContext();
-    const client = await createClient(app);
-    await uploadConfig(app, client.id);
-    await uploadConfig(app, client.id, usdOnlyCurrencyConfig());
-
-    const result = await requestApp(app, "POST", "/imports/dry-run", {
-      clientId: client.id,
-      environment: "development",
-      configVersion: 1,
-      sourceType: "csv",
-      csvContent: validCsv
-    });
-
-    expect(result.status).toBe(201);
-    expect(result.body).toMatchObject({
-      configVersion: 1,
-      totalRecords: 1,
-      validRecords: 1,
-      invalidRecords: 0,
-      storedOrderCount: 0
-    });
-  });
-
-  it("uses the latest config version for dry-runs by default", async () => {
-    const { app } = createTestContext();
-    const client = await createClient(app);
-    await uploadConfig(app, client.id);
-    await uploadConfig(app, client.id, usdOnlyCurrencyConfig());
-
-    const result = await requestApp(app, "POST", "/imports/dry-run", {
-      clientId: client.id,
-      environment: "development",
-      sourceType: "csv",
-      csvContent: validCsv
-    });
-
-    expect(result.status).toBe(201);
-    expect(result.body).toMatchObject({
-      configVersion: 2,
-      totalRecords: 1,
-      validRecords: 0,
-      invalidRecords: 1,
-      storedOrderCount: 0
-    });
-    expect(result.body.errors).toEqual([
-      expect.objectContaining({
-        row: 1,
-        field: "currency",
-        value: "EUR"
-      })
-    ]);
-  });
-
-  it("commits valid rows and preserves source records when partial success is enabled", async () => {
-    const { app, store } = createTestContext();
-    const client = await createClient(app);
-    await uploadConfig(app, client.id);
-
-    const result = await requestApp(app, "POST", "/imports", {
-      clientId: client.id,
-      environment: "development",
-      sourceType: "csv",
-      csvContent: mixedCsv
-    });
-
-    expect(result.status).toBe(201);
-    expect(result.body).toMatchObject({
-      configVersion: 1,
-      totalRecords: 2,
-      validRecords: 1,
-      invalidRecords: 1,
-      storedOrderCount: 1
-    });
-
-    await expect(store.orders.count({ clientId: client.id })).resolves.toBe(1);
-    const storedOrders = await store.orders.list({ clientId: client.id });
-    expect(storedOrders[0]).toMatchObject({
-      batchId: result.body.batchId,
-      clientId: client.id,
-      externalOrderId: "1001",
-      customerEmail: "sarah@example.com",
-      orderTotal: 84.5,
-      currency: "EUR",
-      status: "paid",
-      sourceRecord: expect.objectContaining({ "Order ID": "1001" })
-    });
-
-    const batch = await store.batches.findById(result.body.batchId);
-    expect(batch).toMatchObject({
-      clientId: client.id,
-      configVersion: 1,
-      mode: "commit",
-      storedRecords: 1
-    });
-
-    const orders = await requestApp(app, "GET", `/orders?clientId=${client.id}`);
-    expect(orders.status).toBe(200);
-    expect(orders.body.orders).toHaveLength(1);
-    expect(orders.body.orders[0].sourceRecord).toHaveProperty("Order ID", "1001");
-
-    const batches = await requestApp(app, "GET", "/batches");
-    expect(batches.status).toBe(200);
-    expect(batches.body.batches[0]).toMatchObject({
-      mode: "commit",
-      storedRecords: 1
-    });
-
-    const orderDetail = await requestApp(
-      app,
-      "GET",
-      `/orders/${orders.body.orders[0].id}`
-    );
-    expect(orderDetail.status).toBe(200);
-    const batchDetail = await requestApp(app, "GET", `/batches/${result.body.batchId}`);
-    expect(batchDetail.status).toBe(200);
-  });
-
-  it("does not commit any rows when partial success is disabled", async () => {
-    const { app, store } = createTestContext();
-    const client = await createClient(app);
-    await uploadConfig(
-      app,
-      client.id,
-      demoConfig({
-        settings: {
-          allowPartialSuccess: false,
-          maxErrors: 20,
-          previewLimit: 10
-        }
-      })
-    );
-
-    const result = await requestApp(app, "POST", "/imports", {
-      clientId: client.id,
-      environment: "development",
-      sourceType: "csv",
-      csvContent: mixedCsv
-    });
-
-    expect(result.status).toBe(201);
-    expect(result.body).toMatchObject({
-      totalRecords: 2,
-      validRecords: 1,
-      invalidRecords: 1,
-      storedOrderCount: 0
-    });
-    await expect(store.orders.count({ clientId: client.id })).resolves.toBe(0);
-
-    const batch = await store.batches.findById(result.body.batchId);
-    expect(batch).toMatchObject({
-      clientId: client.id,
-      configVersion: 1,
-      mode: "commit",
-      validRecords: 1,
-      invalidRecords: 1,
-      storedRecords: 0
-    });
-
-    const orders = await requestApp(app, "GET", `/orders?clientId=${client.id}`);
-    expect(orders.status).toBe(200);
-    expect(orders.body.orders).toHaveLength(0);
-  });
-
-  it("commits fully valid JSON imports", async () => {
-    const { app, store } = createTestContext();
-    const client = await createClient(app);
-    await uploadConfig(
-      app,
-      client.id,
-      demoConfig({ source: { type: "json", name: "json-order-export" } })
-    );
-
-    const result = await requestApp(app, "POST", "/imports", {
-      clientId: client.id,
-      environment: "development",
-      records: [
-        {
-          order_id: "1001",
-          email: "sarah@example.com",
-          "Customer Name": "Sarah Miller",
-          "Order Total": "84.50",
-          Currency: "eur",
-          "Order Date": "2026-04-10",
-          Status: "complete"
-        }
-      ]
-    });
-
-    expect(result.status).toBe(201);
-    expect(result.body).toMatchObject({
-      totalRecords: 1,
-      validRecords: 1,
-      invalidRecords: 0,
-      storedOrderCount: 1
-    });
-
-    await expect(store.orders.count({ clientId: client.id })).resolves.toBe(1);
-    const storedOrders = await store.orders.list({ clientId: client.id });
-    expect(storedOrders[0]).toMatchObject({
-      batchId: result.body.batchId,
-      clientId: client.id,
-      externalOrderId: "1001",
-      customerEmail: "sarah@example.com",
-      customerName: "Sarah Miller",
-      orderTotal: 84.5,
-      currency: "EUR",
-      orderDate: "2026-04-10",
-      status: "paid",
-      sourceRecord: expect.objectContaining({ order_id: "1001" })
-    });
-
-    const batch = await store.batches.findById(result.body.batchId);
-    expect(batch).toMatchObject({
-      clientId: client.id,
-      configVersion: 1,
-      sourceType: "json",
-      mode: "commit",
-      storedRecords: 1
-    });
-  });
-
-  it("lists dry-run and committed batch history with details and row errors", async () => {
-    const { app } = createTestContext();
-    const client = await createClient(app);
-    await uploadConfig(app, client.id);
-
-    const dryRun = await requestApp(app, "POST", "/imports/dry-run", {
-      clientId: client.id,
-      environment: "development",
-      sourceType: "csv",
-      csvContent: mixedCsv
-    });
-    const commit = await requestApp(app, "POST", "/imports", {
-      clientId: client.id,
-      environment: "development",
-      sourceType: "csv",
-      csvContent: validCsv
-    });
-
-    const list = await requestApp(app, "GET", "/batches");
-
-    expect(list.status).toBe(200);
-    expect(list.body.batches).toHaveLength(2);
-    expect(list.body.batches).toEqual(
+    expect(preview.body.orderPreview).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: dryRun.body.batchId,
-          clientId: client.id,
-          client: expect.objectContaining({
-            id: client.id,
-            code: "urban-home-store",
-            name: "Urban Home Store"
-          }),
-          environment: "development",
-          configVersion: 1,
-          sourceType: "csv",
-          mode: "dry-run",
-          totalRecords: 2,
-          validRecords: 1,
-          invalidRecords: 1,
-          storedRecords: 0,
-          createdAt: expect.any(String),
-          errors: expect.arrayContaining([
-            expect.objectContaining({ row: 2, field: "customerEmail" }),
-            expect.objectContaining({ row: 2, field: "orderTotal" })
-          ])
+          sourceOrderId: "112-9739103-000001",
+          salesChannel: "Amazon.de",
+          totalAmount: 96.98,
         }),
         expect.objectContaining({
-          id: commit.body.batchId,
-          clientId: client.id,
-          client: expect.objectContaining({ id: client.id }),
-          environment: "development",
-          configVersion: 1,
-          sourceType: "csv",
-          mode: "commit",
-          totalRecords: 1,
-          validRecords: 1,
-          invalidRecords: 0,
-          storedRecords: 1,
-          createdAt: expect.any(String),
-          errors: []
-        })
-      ])
+          sourceOrderId: "112-9739103-000002",
+          lineCount: 2,
+          itemQuantity: 3,
+          totalAmount: 76.53,
+        }),
+      ]),
     );
+  });
 
-    const detail = await requestApp(app, "GET", `/batches/${dryRun.body.batchId}`);
+  it("previews Shopify CSV imports after carry-forward normalization", async () => {
+    const { app } = createTestContext();
 
-    expect(detail.status).toBe(200);
-    expect(detail.body).toMatchObject({
-      id: dryRun.body.batchId,
-      clientId: client.id,
-      client: expect.objectContaining({ id: client.id }),
-      mode: "dry-run",
-      totalRecords: 2,
-      validRecords: 1,
-      invalidRecords: 1,
-      storedRecords: 0
+    const preview = await requestApp(app, "POST", "/imports/preview", {
+      templateKey: "shopify",
+      inputKind: "delimited",
+      fileName: "shopify-orders-export.csv",
+      content: shopifyCsv,
     });
-    expect(detail.body.errors).toEqual(
+
+    expect(preview.status).toBe(201);
+    expect(preview.body.orderPreview).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ row: 2, field: "customerEmail" }),
-        expect.objectContaining({ row: 2, field: "orderTotal" })
-      ])
+        expect.objectContaining({
+          sourceOrderId: "5001001",
+          sourceOrderName: "#1001",
+          lineCount: 2,
+          itemQuantity: 3,
+          totalAmount: 139.11,
+        }),
+      ]),
+    );
+    expect(preview.body.linePreview).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceOrderId: "5001001",
+          productTitle: "Cashmere Throw",
+        }),
+        expect.objectContaining({
+          sourceOrderId: "5001001",
+          productTitle: "Brass Candle Holder",
+        }),
+      ]),
     );
   });
 
-  it("filters normalized order listings by client and returns order details", async () => {
-    const { app } = createTestContext();
-    const firstClient = await createClient(app);
-    const secondClient = await createClient(
-      app,
-      "bright-market",
-      "Bright Market"
-    );
-    await uploadConfig(app, firstClient.id);
-    await uploadConfig(app, secondClient.id);
+  it("commits generic CSV imports and exposes recent import details with line drill-down", async () => {
+    const { app, store } = createTestContext();
 
-    await requestApp(app, "POST", "/imports", {
-      clientId: firstClient.id,
-      environment: "development",
-      sourceType: "csv",
-      csvContent: validCsv
-    });
-    await requestApp(app, "POST", "/imports", {
-      clientId: secondClient.id,
-      environment: "development",
-      sourceType: "csv",
-      csvContent: validCsv
+    const commit = await requestApp(app, "POST", "/imports", {
+      templateKey: "generic",
+      inputKind: "delimited",
+      fileName: "generic-marketplace-orders.csv",
+      content: genericCsv,
     });
 
-    const allOrders = await requestApp(app, "GET", "/orders");
-    const filtered = await requestApp(
-      app,
-      "GET",
-      `/orders?clientId=${firstClient.id}`
-    );
-
-    expect(allOrders.status).toBe(200);
-    expect(allOrders.body.orders).toHaveLength(2);
-    expect(filtered.status).toBe(200);
-    expect(filtered.body.orders).toHaveLength(1);
-    expect(filtered.body.orders[0]).toMatchObject({
-      clientId: firstClient.id,
-      externalOrderId: "1001",
-      customerEmail: "sarah@example.com",
-      orderTotal: 84.5,
-      currency: "EUR",
-      orderDate: "2026-04-10",
-      status: "paid",
-      sourceRecord: expect.objectContaining({ "Order ID": "1001" }),
-      createdAt: expect.any(String)
+    expect(commit.status).toBe(201);
+    expect(commit.body).toMatchObject({
+      totalRecords: 3,
+      validRecords: 3,
+      invalidRecords: 0,
+      storedOrderCount: 2,
+      storedLineCount: 3,
     });
 
-    const detail = await requestApp(
-      app,
-      "GET",
-      `/orders/${filtered.body.orders[0].id}`
-    );
+    const imports = await requestApp(app, "GET", "/imports");
+    expect(imports.status).toBe(200);
+    expect(imports.body.imports).toHaveLength(1);
 
+    const detail = await requestApp(app, "GET", `/imports/${commit.body.importRunId}`);
     expect(detail.status).toBe(200);
-    expect(detail.body).toMatchObject({
-      id: filtered.body.orders[0].id,
-      batchId: filtered.body.orders[0].batchId,
-      clientId: firstClient.id,
-      externalOrderId: "1001",
-      customerName: "Sarah Miller",
-      customerEmail: "sarah@example.com",
-      orderTotal: 84.5,
-      sourceRecord: expect.objectContaining({ "Order ID": "1001" })
-    });
+    expect(detail.body.orders).toHaveLength(2);
+
+    const firstOrder = detail.body.orders[0];
+    const lines = await requestApp(app, "GET", `/orders/${firstOrder.id}/lines`);
+    expect(lines.status).toBe(200);
+    expect(lines.body.lines.length).toBeGreaterThan(0);
+
+    const storedOrders = await store.orders.list({ importRunId: commit.body.importRunId });
+    expect(storedOrders).toHaveLength(2);
+    await expect(store.orderLines.count({ importRunId: commit.body.importRunId })).resolves.toBe(3);
   });
 
-  it("returns clean errors for invalid and missing batch or order IDs", async () => {
+  it("commits valid rows when partial success is allowed", async () => {
     const { app } = createTestContext();
-    const missingId = new Types.ObjectId().toString();
 
-    const invalidBatchId = await requestApp(app, "GET", "/batches/not-an-id");
-    const missingBatch = await requestApp(app, "GET", `/batches/${missingId}`);
-    const invalidBatchClientFilter = await requestApp(
-      app,
-      "GET",
-      "/batches?clientId=not-an-id"
-    );
-    const invalidOrderId = await requestApp(app, "GET", "/orders/not-an-id");
-    const missingOrder = await requestApp(app, "GET", `/orders/${missingId}`);
-    const invalidOrderClientFilter = await requestApp(
-      app,
-      "GET",
-      "/orders?clientId=not-an-id"
-    );
+    const commit = await requestApp(app, "POST", "/imports", {
+      templateKey: "generic",
+      inputKind: "records",
+      fileName: "generic-mixed.json",
+      records: genericMixedJson,
+    });
 
-    expect(invalidBatchId.status).toBe(400);
-    expect(invalidBatchId.body).toEqual({
-      error: { message: "Invalid id" }
+    expect(commit.status).toBe(201);
+    expect(commit.body).toMatchObject({
+      totalRecords: 3,
+      validRecords: 2,
+      invalidRecords: 1,
+      storedOrderCount: 2,
+      storedLineCount: 2,
     });
-    expect(missingBatch.status).toBe(404);
-    expect(missingBatch.body).toEqual({
-      error: { message: "Batch not found" }
-    });
-    expect(invalidBatchClientFilter.status).toBe(400);
-    expect(invalidBatchClientFilter.body).toEqual({
-      error: { message: "Invalid clientId" }
-    });
-    expect(invalidOrderId.status).toBe(400);
-    expect(invalidOrderId.body).toEqual({
-      error: { message: "Invalid id" }
-    });
-    expect(missingOrder.status).toBe(404);
-    expect(missingOrder.body).toEqual({
-      error: { message: "Order not found" }
-    });
-    expect(invalidOrderClientFilter.status).toBe(400);
-    expect(invalidOrderClientFilter.body).toEqual({
-      error: { message: "Invalid clientId" }
-    });
+    expect(commit.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          row: 3,
+          field: "productTitle",
+        }),
+        expect.objectContaining({
+          row: 3,
+          field: "quantity",
+        }),
+      ]),
+    );
   });
 });

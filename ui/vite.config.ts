@@ -12,12 +12,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/batches": "http://localhost:3000",
-      "/clients": "http://localhost:3000",
-      "/configs": "http://localhost:3000",
       "/health": "http://localhost:3000",
       "/imports": "http://localhost:3000",
       "/orders": "http://localhost:3000",
+      "/templates": "http://localhost:3000",
     },
   },
 });

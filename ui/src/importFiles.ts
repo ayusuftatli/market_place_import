@@ -1,6 +1,6 @@
 import { parse } from "csv-parse/browser/esm/sync";
 import { read, utils, write } from "xlsx";
-import { DEMO_JSON_RECORDS, DEMO_ORDER_HEADERS } from "./demoData";
+import { GENERIC_SAMPLE_JSON } from "./demoData";
 import type {
   ImportFileKind,
   PreparedImportSource,
@@ -16,6 +16,10 @@ export function detectImportFileKind(
 ): ImportFileKind {
   const normalizedName = fileName.toLowerCase();
   const normalizedType = mimeType.toLowerCase();
+
+  if (normalizedName.endsWith(".tsv") || normalizedType.includes("tab-separated")) {
+    return "tsv";
+  }
 
   if (normalizedName.endsWith(".csv") || normalizedType.includes("csv")) {
     return "csv";
@@ -35,7 +39,7 @@ export function detectImportFileKind(
     return "excel";
   }
 
-  throw new Error("Use a CSV, JSON, XLS, or XLSX file.");
+  throw new Error("Use a CSV, TSV, JSON, XLS, or XLSX file.");
 }
 
 export async function prepareImportFile(
@@ -43,12 +47,12 @@ export async function prepareImportFile(
 ): Promise<PreparedImportSource> {
   const kind = detectImportFileKind(file.name, file.type);
 
-  if (kind === "csv") {
-    return createCsvSource(file.name, await file.text());
+  if (kind === "csv" || kind === "tsv") {
+    return createDelimitedSource(file.name, await file.text(), kind);
   }
 
   if (kind === "json") {
-    return createJsonSource(file.name, parseJsonImport(await file.text()));
+    return createRecordSource(file.name, parseJsonImport(await file.text()), kind);
   }
 
   return createExcelSource(
@@ -57,32 +61,34 @@ export async function prepareImportFile(
   );
 }
 
-export function createCsvSource(
+export function createDelimitedSource(
   fileName: string,
-  csvContent: string,
+  content: string,
+  kind: "csv" | "tsv" = detectDelimiter(content, fileName) === "\t" ? "tsv" : "csv",
 ): PreparedImportSource {
-  const records = parseCsvRecords(csvContent);
+  const records = parseDelimitedPreview(content, fileName);
 
   return {
-    kind: "csv",
+    kind,
+    inputKind: "delimited",
     fileName,
-    sourceType: "csv",
     recordCount: records.length,
     previewRows: records.slice(0, 5),
-    csvContent,
+    content,
   };
 }
 
-export function createJsonSource(
+export function createRecordSource(
   fileName: string,
   records: SourceRecord[],
+  kind: "json" | "excel" = "json",
 ): PreparedImportSource {
-  const asserted = assertSourceRecords(records, "JSON record");
+  const asserted = assertSourceRecords(records, "Record");
 
   return {
-    kind: "json",
+    kind,
+    inputKind: "records",
     fileName,
-    sourceType: "json",
     recordCount: asserted.length,
     previewRows: asserted.slice(0, 5),
     records: asserted,
@@ -93,16 +99,7 @@ export function createExcelSource(
   fileName: string,
   records: SourceRecord[],
 ): PreparedImportSource {
-  const asserted = assertSourceRecords(records, "Excel row");
-
-  return {
-    kind: "excel",
-    fileName,
-    sourceType: "json",
-    recordCount: asserted.length,
-    previewRows: asserted.slice(0, 5),
-    records: asserted,
-  };
+  return createRecordSource(fileName, records, "excel");
 }
 
 export function parseJsonImport(content: string): SourceRecord[] {
@@ -145,11 +142,9 @@ export function parseExcelRecords(data: ArrayBuffer): SourceRecord[] {
 }
 
 export function createSampleExcelWorkbook(
-  records: SourceRecord[] = DEMO_JSON_RECORDS,
+  records: SourceRecord[] = GENERIC_SAMPLE_JSON,
 ): ArrayBuffer {
-  const worksheet = utils.json_to_sheet(records, {
-    header: DEMO_ORDER_HEADERS,
-  });
+  const worksheet = utils.json_to_sheet(records);
   const workbook = utils.book_new();
   utils.book_append_sheet(workbook, worksheet, "Orders");
 
@@ -159,41 +154,85 @@ export function createSampleExcelWorkbook(
   }) as ArrayBuffer;
 }
 
-export function createSampleExcelFile(): File {
-  return new File([createSampleExcelWorkbook()], "urban-home-orders.xlsx", {
-    type: EXCEL_MIME_TYPE,
-  });
-}
-
-export function downloadSampleExcel(): void {
+export function downloadSampleExcel(fileName = "generic-marketplace-orders.xlsx"): void {
   const blob = new Blob([createSampleExcelWorkbook()], {
     type: EXCEL_MIME_TYPE,
   });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "urban-home-orders.xlsx";
+  link.download = fileName;
   link.click();
   URL.revokeObjectURL(url);
 }
 
-function parseCsvRecords(content: string): SourceRecord[] {
+export function parseDelimitedPreview(
+  content: string,
+  fileName = "import.txt",
+): SourceRecord[] {
   if (content.trim().length === 0) {
-    throw new Error("CSV content must not be empty.");
+    throw new Error("Delimited content must not be empty.");
   }
 
+  const delimiter = detectDelimiter(content, fileName);
   const records = parse(content, {
     bom: true,
-    columns: (headers: string[]) => headers.map((header) => header.trim()),
+    columns: (headers: string[]) => {
+      const normalized = headers.map((header) => header.trim());
+      const emptyHeaderIndex = normalized.findIndex((header) => header.length === 0);
+      if (emptyHeaderIndex !== -1) {
+        throw new Error(
+          `Header at column ${emptyHeaderIndex + 1} must not be empty.`,
+        );
+      }
+      return normalized;
+    },
+    delimiter,
     skip_empty_lines: true,
     trim: false,
+    relax_column_count: true,
   }) as unknown;
 
-  if (!Array.isArray(records)) {
-    throw new Error("CSV content must parse to rows.");
+  if (!Array.isArray(records) || records.length === 0) {
+    throw new Error("Delimited content must include at least one data row.");
   }
 
-  return assertSourceRecords(records, "CSV row");
+  return assertSourceRecords(records, "Row");
+}
+
+function detectDelimiter(content: string, fileName = ""): "," | "\t" | ";" {
+  const lowerFileName = fileName.toLowerCase();
+  if (lowerFileName.endsWith(".tsv")) {
+    return "\t";
+  }
+
+  const lines = content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .slice(0, 3);
+
+  const counts = {
+    ",": 0,
+    "\t": 0,
+    ";": 0,
+  };
+
+  for (const line of lines) {
+    counts[","] += countOccurrences(line, ",");
+    counts["\t"] += countOccurrences(line, "\t");
+    counts[";"] += countOccurrences(line, ";");
+  }
+
+  if (counts["\t"] > counts[","] && counts["\t"] >= counts[";"]) {
+    return "\t";
+  }
+
+  if (counts[";"] > counts[","]) {
+    return ";";
+  }
+
+  return ",";
 }
 
 function assertSourceRecords(
@@ -220,4 +259,8 @@ function isPlainObject(value: unknown): value is SourceRecord {
 
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
+}
+
+function countOccurrences(value: string, needle: string): number {
+  return value.split(needle).length - 1;
 }

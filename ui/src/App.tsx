@@ -1,170 +1,198 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import YAML from "yaml";
 import {
   ApiClientError,
   buildImportRequest,
   commitImport,
-  createClient,
-  dryRunImport,
-  getBatch,
-  listBatches,
-  listClients,
-  listConfigs,
-  listOrders,
-  promoteConfig,
-  uploadConfig,
+  deleteTemplateOverride,
+  getImport,
+  getOrderLines,
+  getTemplate,
+  listImports,
+  listTemplates,
+  previewImport,
+  saveTemplateOverride,
 } from "./api";
 import {
-  DEMO_CLIENT_CODE,
-  DEMO_CLIENT_NAME,
-  DEMO_CONFIG_YAML,
-  DEMO_CSV,
-  DEMO_JSON_RECORDS,
+  AMAZON_SAMPLE_TSV,
+  GENERIC_SAMPLE_CSV,
+  GENERIC_SAMPLE_JSON,
+  SHOPIFY_SAMPLE_CSV,
 } from "./demoData";
 import {
-  createCsvSource,
+  createDelimitedSource,
   createExcelSource,
-  createJsonSource,
+  createRecordSource,
   createSampleExcelWorkbook,
   downloadSampleExcel,
   parseExcelRecords,
   prepareImportFile,
 } from "./importFiles";
 import type {
-  Client,
   ConfigFormat,
-  Environment,
-  ImportBatch,
-  ImportConfig,
+  ImportDetail,
   ImportResult,
-  NormalizedOrder,
+  ImportRun,
+  OrderLine,
+  OrderSummary,
   PreparedImportSource,
   RowValidationError,
   SourceRecord,
+  TemplateDetail,
+  TemplateSummary,
 } from "./types";
 
 const HEADER_IMAGE =
-  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=360&q=70";
-
-const normalizedOrderColumns = [
-  "externalOrderId",
-  "customerEmail",
-  "customerName",
-  "orderTotal",
-  "currency",
-  "orderDate",
-  "status",
-];
+  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80";
 
 const orderColumns = [
-  "externalOrderId",
-  "customerEmail",
-  "orderTotal",
-  "currency",
-  "status",
-  "batchId",
+  "sourceOrderId",
+  "salesChannel",
+  "orderDate",
+  "orderStatus",
+  "totalAmount",
+  "itemQuantity",
+  "lineCount",
+];
+
+const lineColumns = [
+  "sourceOrderId",
+  "sku",
+  "productTitle",
+  "quantity",
+  "unitPriceAmount",
+  "lineSubtotalAmount",
+  "lineTaxAmount",
+  "lineDiscountAmount",
 ];
 
 export function App() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [configs, setConfigs] = useState<ImportConfig[]>([]);
-  const [batches, setBatches] = useState<ImportBatch[]>([]);
-  const [orders, setOrders] = useState<NormalizedOrder[]>([]);
-  const [selectedClientId, setSelectedClientId] = useState("");
-  const [environment, setEnvironment] = useState<Environment>("development");
-  const [configVersion, setConfigVersion] = useState("latest");
-  const [configContent, setConfigContent] = useState(DEMO_CONFIG_YAML);
-  const [configFormat, setConfigFormat] = useState<ConfigFormat>("yaml");
-  const [newClientCode, setNewClientCode] = useState("new-store");
-  const [newClientName, setNewClientName] = useState("New Store");
-  const [importSource, setImportSource] = useState<PreparedImportSource | null>(
-    null,
-  );
+  const [templates, setTemplates] = useState<TemplateSummary[]>([]);
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState("");
+  const [templateDetail, setTemplateDetail] = useState<TemplateDetail | null>(null);
+  const [imports, setImports] = useState<ImportRun[]>([]);
+  const [selectedImport, setSelectedImport] = useState<ImportDetail | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [selectedOrderLines, setSelectedOrderLines] = useState<OrderLine[]>([]);
+  const [selectedPreviewOrderId, setSelectedPreviewOrderId] = useState<string | null>(null);
+  const [importSource, setImportSource] = useState<PreparedImportSource | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
-  const [selectedBatch, setSelectedBatch] = useState<ImportBatch | null>(null);
-  const [activePanel, setActivePanel] = useState<"setup" | "history">("setup");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [editorFormat, setEditorFormat] = useState<ConfigFormat>("yaml");
+  const [editorContent, setEditorContent] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loadingLabel, setLoadingLabel] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const selectedClient = useMemo(
-    () => clients.find((client) => client.id === selectedClientId),
-    [clients, selectedClientId],
+  const selectedTemplate = useMemo(
+    () => templates.find((template) => template.key === selectedTemplateKey),
+    [selectedTemplateKey, templates],
   );
-
-  const environmentConfigs = useMemo(
-    () =>
-      configs.filter(
-        (config) =>
-          config.clientId === selectedClientId &&
-          config.environment === environment,
-      ),
-    [configs, environment, selectedClientId],
-  );
-
-  const selectedConfigVersion = useMemo(() => {
-    if (configVersion === "latest") {
-      return undefined;
-    }
-
-    const parsed = Number(configVersion);
-    return Number.isInteger(parsed) ? parsed : undefined;
-  }, [configVersion]);
-
-  const latestConfig = environmentConfigs[0];
   const isBusy = loadingLabel.length > 0;
 
+  const previewLines = useMemo(() => {
+    if (!result) {
+      return [];
+    }
+
+    if (!selectedPreviewOrderId) {
+      return result.linePreview;
+    }
+
+    return result.linePreview.filter(
+      (line) => line.sourceOrderId === selectedPreviewOrderId,
+    );
+  }, [result, selectedPreviewOrderId]);
+
+  const visibleHistoryOrders = useMemo(() => {
+    if (!selectedImport) {
+      return [];
+    }
+
+    if (selectedImport.orders.length > 0) {
+      return selectedImport.orders;
+    }
+
+    return selectedImport.import.orderPreview;
+  }, [selectedImport]);
+
+  const visibleHistoryLines = useMemo(() => {
+    if (!selectedImport) {
+      return [];
+    }
+
+    if (selectedImport.orders.length > 0) {
+      return selectedOrderLines;
+    }
+
+    if (!selectedOrderId) {
+      return selectedImport.import.linePreview;
+    }
+
+    return selectedImport.import.linePreview.filter(
+      (line) => line.sourceOrderId === selectedOrderId,
+    );
+  }, [selectedImport, selectedOrderId, selectedOrderLines]);
+
   useEffect(() => {
-    void loadClients();
+    void bootstrap();
   }, []);
 
   useEffect(() => {
-    if (!selectedClientId) {
-      setConfigs([]);
-      setBatches([]);
-      setOrders([]);
+    if (!selectedTemplateKey) {
       return;
     }
 
-    void refreshWorkspace(selectedClientId, environment);
-  }, [environment, selectedClientId]);
+    void loadTemplateDetail(selectedTemplateKey);
+  }, [selectedTemplateKey]);
 
-  async function loadClients(preferredClientId?: string) {
-    const nextClients = await listClients();
-    setClients(nextClients);
+  async function bootstrap() {
+    await runSafely("Loading portal", async () => {
+      const [nextTemplates, nextImports] = await Promise.all([
+        listTemplates(),
+        listImports(),
+      ]);
 
-    if (preferredClientId) {
-      setSelectedClientId(preferredClientId);
-      return;
-    }
-
-    if (!selectedClientId && nextClients.length > 0) {
-      setSelectedClientId(nextClients[0].id);
-    }
+      setTemplates(nextTemplates);
+      setImports(nextImports);
+      if (nextTemplates.length > 0) {
+        setSelectedTemplateKey(nextTemplates[0].key);
+      }
+      if (nextImports.length > 0) {
+        await openImportDetail(nextImports[0].id);
+      }
+    });
   }
 
-  async function refreshWorkspace(
-    clientId = selectedClientId,
-    env = environment,
-  ) {
-    if (!clientId) {
-      return;
-    }
+  async function loadTemplateDetail(key: string) {
+    await runSafely("Loading template", async () => {
+      const detail = await getTemplate(key);
+      setTemplateDetail(detail);
+      resetEditor(detail, detail.override?.format ?? "yaml");
+    });
+  }
 
-    const [nextConfigs, nextBatches, nextOrders] = await Promise.all([
-      listConfigs({ clientId, environment: env }),
-      listBatches(clientId),
-      listOrders(clientId),
-    ]);
-    setConfigs(nextConfigs);
-    setBatches(nextBatches);
-    setOrders(nextOrders);
+  function resetEditor(detail: TemplateDetail, format: ConfigFormat) {
+    setEditorFormat(format);
+    setEditorContent(
+      format === "yaml"
+        ? detail.override?.content ?? detail.builtInContent.yaml
+        : detail.override?.format === "json"
+          ? detail.override.content
+          : JSON.stringify(detail.template, null, 2),
+    );
+  }
 
-    if (
-      configVersion !== "latest" &&
-      !nextConfigs.some((config) => String(config.version) === configVersion)
-    ) {
-      setConfigVersion("latest");
+  async function refreshImports(preferredImportId?: string) {
+    const nextImports = await listImports();
+    setImports(nextImports);
+
+    const nextId =
+      preferredImportId ?? selectedImport?.import.id ?? nextImports[0]?.id;
+
+    if (nextId) {
+      await openImportDetail(nextId);
     }
   }
 
@@ -182,85 +210,6 @@ export function App() {
     }
   }
 
-  async function handleDemoSetup() {
-    await runSafely("Preparing demo", async () => {
-      const nextClients = await listClients();
-      let demoClient = nextClients.find(
-        (client) => client.code === DEMO_CLIENT_CODE,
-      );
-
-      if (!demoClient) {
-        demoClient = await createClient({
-          code: DEMO_CLIENT_CODE,
-          name: DEMO_CLIENT_NAME,
-        });
-      }
-
-      const existingConfigs = await listConfigs({
-        clientId: demoClient.id,
-        environment: "development",
-      });
-
-      if (existingConfigs.length === 0) {
-        await uploadConfig({
-          clientId: demoClient.id,
-          environment: "development",
-          format: "yaml",
-          content: DEMO_CONFIG_YAML,
-        });
-      }
-
-      setEnvironment("development");
-      setConfigContent(DEMO_CONFIG_YAML);
-      setConfigFormat("yaml");
-      setConfigVersion("latest");
-      setImportSource(createCsvSource("urban-home-orders.csv", DEMO_CSV));
-      setResult(null);
-      setActivePanel("setup");
-      await loadClients(demoClient.id);
-      await refreshWorkspace(demoClient.id, "development");
-      setMessage("Demo workspace ready.");
-    });
-  }
-
-  async function handleCreateClient() {
-    await runSafely("Creating client", async () => {
-      const client = await createClient({
-        code: newClientCode.trim(),
-        name: newClientName.trim(),
-      });
-      await loadClients(client.id);
-      setMessage("Client created.");
-    });
-  }
-
-  async function handleUploadConfig() {
-    if (!selectedClientId) {
-      setError("Choose a client before uploading a config.");
-      return;
-    }
-
-    await runSafely("Uploading config", async () => {
-      const config = await uploadConfig({
-        clientId: selectedClientId,
-        environment,
-        format: configFormat,
-        content: configContent,
-      });
-      setConfigVersion(String(config.version));
-      await refreshWorkspace(selectedClientId, environment);
-      setMessage(`Config version ${config.version} uploaded.`);
-    });
-  }
-
-  async function handlePromoteConfig(configId: string) {
-    await runSafely("Promoting config", async () => {
-      await promoteConfig(configId);
-      await refreshWorkspace(selectedClientId, environment);
-      setMessage("Config promoted to production.");
-    });
-  }
-
   async function handleFileSelection(files: FileList | null) {
     const file = files?.[0];
     if (!file) {
@@ -271,150 +220,263 @@ export function App() {
       const prepared = await prepareImportFile(file);
       setImportSource(prepared);
       setResult(null);
-      setMessage(`${prepared.fileName} ready for import.`);
+      setSelectedPreviewOrderId(null);
+      setMessage(`${prepared.fileName} is ready.`);
     });
   }
 
-  function loadSampleCsv() {
-    setImportSource(createCsvSource("urban-home-orders.csv", DEMO_CSV));
-    setResult(null);
-    setMessage("Sample CSV loaded.");
-  }
+  function loadSample(kind: "amazon" | "shopify" | "generic-csv" | "generic-json" | "generic-excel") {
+    if (kind === "amazon") {
+      setImportSource(
+        createDelimitedSource("amazon-orders-report.tsv", AMAZON_SAMPLE_TSV, "tsv"),
+      );
+      setSelectedTemplateKey("amazon");
+      setResult(null);
+      setMessage("Amazon sample loaded.");
+      return;
+    }
 
-  function loadSampleJson() {
+    if (kind === "shopify") {
+      setImportSource(
+        createDelimitedSource("shopify-orders-export.csv", SHOPIFY_SAMPLE_CSV, "csv"),
+      );
+      setSelectedTemplateKey("shopify");
+      setResult(null);
+      setMessage("Shopify sample loaded.");
+      return;
+    }
+
+    if (kind === "generic-json") {
+      setImportSource(createRecordSource("generic-orders.json", GENERIC_SAMPLE_JSON, "json"));
+      setSelectedTemplateKey("generic");
+      setResult(null);
+      setMessage("Generic JSON sample loaded.");
+      return;
+    }
+
+    if (kind === "generic-excel") {
+      setImportSource(
+        createExcelSource(
+          "generic-marketplace-orders.xlsx",
+          parseExcelRecords(createSampleExcelWorkbook(GENERIC_SAMPLE_JSON)),
+        ),
+      );
+      setSelectedTemplateKey("generic");
+      setResult(null);
+      setMessage("Generic Excel sample loaded.");
+      return;
+    }
+
     setImportSource(
-      createJsonSource("urban-home-orders.json", DEMO_JSON_RECORDS),
+      createDelimitedSource("generic-marketplace-orders.csv", GENERIC_SAMPLE_CSV, "csv"),
     );
+    setSelectedTemplateKey("generic");
     setResult(null);
-    setMessage("Sample JSON loaded.");
+    setMessage("Generic CSV sample loaded.");
   }
 
-  function loadSampleExcel() {
-    const records = parseExcelRecords(createSampleExcelWorkbook());
-    setImportSource(createExcelSource("urban-home-orders.xlsx", records));
-    setResult(null);
-    setMessage("Sample Excel workbook loaded.");
-  }
-
-  async function handleImport(mode: "dry-run" | "commit") {
-    if (!selectedClientId) {
-      setError("Choose or create a client first.");
+  async function handleImport(mode: "preview" | "commit") {
+    if (!selectedTemplateKey) {
+      setError("Choose a source template first.");
       return;
     }
 
     if (!importSource) {
-      setError("Load a CSV, JSON, or Excel file first.");
+      setError("Load a source file first.");
       return;
     }
 
-    await runSafely(
-      mode === "dry-run" ? "Running dry-run" : "Committing",
-      async () => {
-        const payload = buildImportRequest({
-          clientId: selectedClientId,
-          environment,
-          configVersion: selectedConfigVersion,
-          source: importSource,
-        });
-        const output =
-          mode === "dry-run"
-            ? await dryRunImport(payload)
-            : await commitImport(payload);
+    await runSafely(mode === "preview" ? "Previewing import" : "Committing import", async () => {
+      const payload = buildImportRequest({
+        templateKey: selectedTemplateKey,
+        source: importSource,
+      });
+      const output =
+        mode === "preview"
+          ? await previewImport(payload)
+          : await commitImport(payload);
 
-        setResult(output);
-        await refreshWorkspace(selectedClientId, environment);
-        setMessage(
-          mode === "dry-run"
-            ? "Dry-run complete."
-            : `${output.storedOrderCount} order record(s) stored.`,
-        );
-      },
-    );
-  }
-
-  async function handleSelectBatch(batchId: string) {
-    await runSafely("Loading batch", async () => {
-      const batch = await getBatch(batchId);
-      setSelectedBatch(batch);
+      setResult(output);
+      setSelectedPreviewOrderId(output.orderPreview[0]?.sourceOrderId ?? null);
+      await refreshImports(output.importRunId);
+      setMessage(
+        mode === "preview"
+          ? "Preview ready."
+          : `${output.storedOrderCount} order summary record(s) stored.`,
+      );
     });
   }
 
+  async function openImportDetail(importId: string) {
+    const detail = await getImport(importId);
+    setSelectedImport(detail);
+    const firstOrderId = detail.orders[0]?.id ?? detail.import.orderPreview[0]?.sourceOrderId ?? null;
+    setSelectedOrderId(firstOrderId);
+
+    if (detail.orders[0]?.id) {
+      const lines = await getOrderLines(detail.orders[0].id);
+      setSelectedOrderLines(lines);
+      return;
+    }
+
+    setSelectedOrderLines([]);
+  }
+
+  async function handleSelectImport(importId: string) {
+    await runSafely("Loading import details", async () => {
+      await openImportDetail(importId);
+    });
+  }
+
+  async function handleSelectStoredOrder(order: OrderSummary) {
+    setSelectedOrderId(order.id ?? order.sourceOrderId);
+
+    if (!order.id) {
+      setSelectedOrderLines([]);
+      return;
+    }
+
+    await runSafely("Loading line items", async () => {
+      const lines = await getOrderLines(order.id as string);
+      setSelectedOrderLines(lines);
+    });
+  }
+
+  async function handleSaveOverride() {
+    if (!templateDetail) {
+      return;
+    }
+
+    await runSafely("Saving template override", async () => {
+      const detail = await saveTemplateOverride({
+        key: templateDetail.template.key,
+        format: editorFormat,
+        content: editorContent,
+      });
+      setTemplateDetail(detail);
+      resetEditor(detail, detail.override?.format ?? editorFormat);
+      setTemplates(await listTemplates());
+      setMessage("Advanced template override saved.");
+    });
+  }
+
+  async function handleRestoreTemplate() {
+    if (!templateDetail) {
+      return;
+    }
+
+    await runSafely("Restoring built-in template", async () => {
+      const detail = await deleteTemplateOverride(templateDetail.template.key);
+      setTemplateDetail(detail);
+      resetEditor(detail, "yaml");
+      setTemplates(await listTemplates());
+      setMessage("Built-in template restored.");
+    });
+  }
+
+  function handleEditorFormatChange(format: ConfigFormat) {
+    setEditorFormat(format);
+    if (!templateDetail) {
+      return;
+    }
+
+    setEditorContent(
+      format === "yaml"
+        ? YAML.stringify(templateDetail.template)
+        : JSON.stringify(templateDetail.template, null, 2),
+    );
+  }
+
+  const historyLineLabel = selectedImport?.orders.length
+    ? "Stored line items"
+    : "Preview line items";
+
   return (
     <main className="app-shell">
-      <header className="topbar">
-        <div className="brand-copy">
-          <p className="eyebrow">Order Import Platform</p>
-          <h1>Import console</h1>
+      <header className="masthead">
+        <div className="masthead-copy">
+          <p className="eyebrow">Marketplace Import Portal</p>
+          <h1>Review Amazon, Shopify, and spreadsheet exports before they land.</h1>
           <p>
-            Preview partner files, catch row errors, and commit clean normalized
-            orders.
+            Choose a source, drop in the latest order file, and inspect clean
+            order summaries with line-level drill-down.
           </p>
+          <div className="status-strip" aria-live="polite">
+            <span>{loadingLabel || message || "Ready"}</span>
+            {error ? <strong className="error-text">{error}</strong> : null}
+          </div>
         </div>
-        <img
-          className="brand-image"
-          src={HEADER_IMAGE}
-          alt="Spreadsheet review workspace"
-        />
+        <img className="masthead-image" src={HEADER_IMAGE} alt="Analyst reviewing order exports" />
       </header>
 
-      <section className="toolbar" aria-label="Workspace controls">
-        <button className="primary" onClick={handleDemoSetup} disabled={isBusy}>
-          One-click demo setup
-        </button>
-        <label>
-          Client
-          <select
-            value={selectedClientId}
-            onChange={(event) => setSelectedClientId(event.target.value)}
-          >
-            <option value="">Choose client</option>
-            {clients.map((client) => (
-              <option key={client.id} value={client.id}>
-                {client.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Environment
-          <select
-            value={environment}
-            onChange={(event) =>
-              setEnvironment(event.target.value as Environment)
-            }
-          >
-            <option value="development">development</option>
-            <option value="production">production</option>
-          </select>
-        </label>
-        <label>
-          Config
-          <select
-            value={configVersion}
-            onChange={(event) => setConfigVersion(event.target.value)}
-            disabled={environmentConfigs.length === 0}
-          >
-            <option value="latest">Latest active</option>
-            {environmentConfigs.map((config) => (
-              <option key={config.id} value={config.version}>
-                v{config.version} {config.status}
-              </option>
-            ))}
-          </select>
-        </label>
+      <section className="template-band">
+        <div className="section-title">
+          <div>
+            <p className="eyebrow">Templates</p>
+            <h2>Choose a source lane</h2>
+          </div>
+          <button className="ghost" onClick={() => setAdvancedOpen((open) => !open)}>
+            {advancedOpen ? "Hide advanced" : "Advanced template editor"}
+          </button>
+        </div>
+        <div className="template-grid">
+          {templates.map((template) => (
+            <button
+              key={template.key}
+              className={`template-card ${template.key === selectedTemplateKey ? "active" : ""}`}
+              onClick={() => setSelectedTemplateKey(template.key)}
+            >
+              <strong>{template.label}</strong>
+              <span>{template.description}</span>
+              <small>
+                {template.acceptedFileKinds.join(", ")}
+                {template.hasOverride ? " • override active" : ""}
+              </small>
+            </button>
+          ))}
+        </div>
       </section>
 
-      <StatusBar
-        loadingLabel={loadingLabel}
-        message={message}
-        error={error}
-        selectedClient={selectedClient}
-        latestConfig={latestConfig}
-      />
+      {advancedOpen && templateDetail ? (
+        <section className="advanced-band">
+          <div className="section-title">
+            <div>
+              <p className="eyebrow">Advanced</p>
+              <h2>{templateDetail.template.label}</h2>
+            </div>
+            <div className="button-row">
+              <label className="compact-label">
+                Format
+                <select
+                  value={editorFormat}
+                  onChange={(event) =>
+                    handleEditorFormatChange(event.target.value as ConfigFormat)
+                  }
+                >
+                  <option value="yaml">yaml</option>
+                  <option value="json">json</option>
+                </select>
+              </label>
+              <button className="ghost" onClick={handleRestoreTemplate} disabled={isBusy}>
+                Restore built-in
+              </button>
+              <button className="primary" onClick={handleSaveOverride} disabled={isBusy}>
+                Save override
+              </button>
+            </div>
+          </div>
+          <textarea
+            className="editor"
+            value={editorContent}
+            onChange={(event) => setEditorContent(event.target.value)}
+            spellCheck={false}
+          />
+        </section>
+      ) : null}
 
       <section className="workspace">
         <div className="import-panel">
-          <div className="section-heading">
+          <div className="section-title">
             <div>
               <p className="eyebrow">Import</p>
               <h2>Source file</h2>
@@ -448,26 +510,28 @@ export function App() {
               ref={fileInputRef}
               className="sr-only"
               type="file"
-              accept=".csv,.json,.xls,.xlsx"
+              accept=".csv,.tsv,.json,.xls,.xlsx"
               onChange={(event) => void handleFileSelection(event.target.files)}
             />
             <strong>
-              {importSource
-                ? importSource.fileName
-                : "Drop a CSV, JSON, or Excel file"}
+              {importSource ? importSource.fileName : "Drop a marketplace export"}
             </strong>
             <span>
               {importSource
                 ? `${importSource.recordCount} source row(s) ready`
-                : "Excel is converted in the browser before it reaches the API."}
+                : selectedTemplate
+                  ? `${selectedTemplate.acceptedFileKinds.join(", ")} supported`
+                  : "Choose a template first"}
             </span>
           </div>
 
           <div className="button-row">
-            <button onClick={loadSampleCsv}>Load sample CSV</button>
-            <button onClick={loadSampleJson}>Load sample JSON</button>
-            <button onClick={loadSampleExcel}>Load sample Excel</button>
-            <button className="ghost" onClick={downloadSampleExcel}>
+            <button onClick={() => loadSample("amazon")}>Amazon sample</button>
+            <button onClick={() => loadSample("shopify")}>Shopify sample</button>
+            <button onClick={() => loadSample("generic-csv")}>Generic CSV</button>
+            <button onClick={() => loadSample("generic-json")}>Generic JSON</button>
+            <button onClick={() => loadSample("generic-excel")}>Generic Excel</button>
+            <button className="ghost" onClick={() => downloadSampleExcel()}>
               Download Excel
             </button>
           </div>
@@ -475,28 +539,34 @@ export function App() {
           <div className="action-row">
             <button
               className="primary"
-              onClick={() => void handleImport("dry-run")}
-              disabled={isBusy || !importSource || !selectedClientId}
+              onClick={() => void handleImport("preview")}
+              disabled={isBusy || !importSource || !selectedTemplateKey}
             >
-              Dry-run import
+              Preview import
             </button>
             <button
               className="success"
               onClick={() => void handleImport("commit")}
-              disabled={isBusy || !importSource || !selectedClientId}
+              disabled={isBusy || !importSource || !selectedTemplateKey}
             >
               Commit valid rows
             </button>
           </div>
 
-          <SourcePreview source={importSource} />
+          <div className="preview-block">
+            <h3>Source preview</h3>
+            <DataTable
+              rows={importSource?.previewRows ?? []}
+              emptyText="Load a file to preview the first rows."
+            />
+          </div>
         </div>
 
         <div className="result-panel">
-          <div className="section-heading">
+          <div className="section-title">
             <div>
-              <p className="eyebrow">Result</p>
-              <h2>Validation</h2>
+              <p className="eyebrow">Current run</p>
+              <h2>Validation and rollup</h2>
             </div>
             {result ? <StatusPill result={result} /> : null}
           </div>
@@ -504,24 +574,34 @@ export function App() {
           {result ? (
             <>
               <div className="metric-grid">
-                <Metric label="Total" value={result.totalRecords} />
+                <Metric label="Rows" value={result.totalRecords} />
                 <Metric label="Valid" value={result.validRecords} tone="good" />
-                <Metric
-                  label="Invalid"
-                  value={result.invalidRecords}
-                  tone="bad"
-                />
+                <Metric label="Invalid" value={result.invalidRecords} tone="bad" />
+                <Metric label="Orders" value={result.orderPreview.length} />
+                <Metric label="Lines" value={result.linePreview.length} />
                 <Metric label="Stored" value={result.storedOrderCount} />
               </div>
 
               <h3>Row errors</h3>
               <ErrorTable errors={result.errors} />
 
-              <h3>Normalized preview</h3>
+              <h3>Order preview</h3>
               <DataTable
-                rows={result.normalizedPreview}
-                columns={normalizedOrderColumns}
-                emptyText="No valid rows in this preview."
+                rows={result.orderPreview}
+                columns={orderColumns}
+                emptyText="No clean orders in this preview."
+                getRowKey={(row) => String(row.sourceOrderId)}
+                activeRowKey={selectedPreviewOrderId ?? undefined}
+                onRowClick={(row) =>
+                  setSelectedPreviewOrderId(String(row.sourceOrderId))
+                }
+              />
+
+              <h3>Line-item drill-down</h3>
+              <DataTable
+                rows={previewLines}
+                columns={lineColumns}
+                emptyText="Choose an order preview to inspect its lines."
               />
             </>
           ) : (
@@ -530,296 +610,76 @@ export function App() {
         </div>
       </section>
 
-      <section className="secondary">
-        <div className="tabs" role="tablist" aria-label="Secondary panels">
-          <button
-            className={activePanel === "setup" ? "active" : ""}
-            onClick={() => setActivePanel("setup")}
-          >
-            Clients and configs
-          </button>
-          <button
-            className={activePanel === "history" ? "active" : ""}
-            onClick={() => setActivePanel("history")}
-          >
-            History and orders
-          </button>
+      <section className="history-band">
+        <div className="section-title">
+          <div>
+            <p className="eyebrow">Recent imports</p>
+            <h2>History and stored orders</h2>
+          </div>
         </div>
 
-        {activePanel === "setup" ? (
-          <SetupPanel
-            configContent={configContent}
-            configFormat={configFormat}
-            configs={environmentConfigs}
-            isBusy={isBusy}
-            newClientCode={newClientCode}
-            newClientName={newClientName}
-            selectedClientId={selectedClientId}
-            onClientCodeChange={setNewClientCode}
-            onClientNameChange={setNewClientName}
-            onConfigContentChange={setConfigContent}
-            onConfigFormatChange={setConfigFormat}
-            onCreateClient={() => void handleCreateClient()}
-            onLoadDemoConfig={() => {
-              setConfigFormat("yaml");
-              setConfigContent(DEMO_CONFIG_YAML);
-            }}
-            onPromoteConfig={(id) => void handlePromoteConfig(id)}
-            onUploadConfig={() => void handleUploadConfig()}
-          />
-        ) : (
-          <HistoryPanel
-            batches={batches}
-            orders={orders}
-            selectedBatch={selectedBatch}
-            onSelectBatch={(id) => void handleSelectBatch(id)}
-          />
-        )}
+        <div className="history-grid">
+          <div className="history-list">
+            {imports.length === 0 ? (
+              <p className="muted">No imports yet.</p>
+            ) : (
+              imports.map((item) => (
+                <button
+                  key={item.id}
+                  className={`history-row ${selectedImport?.import.id === item.id ? "active" : ""}`}
+                  onClick={() => void handleSelectImport(item.id)}
+                >
+                  <strong>{item.templateKey}</strong>
+                  <span>{item.mode}</span>
+                  <span>
+                    {item.validRecords}/{item.totalRecords} valid
+                  </span>
+                  <small>{formatDate(item.createdAt)}</small>
+                </button>
+              ))
+            )}
+          </div>
+
+          <div className="history-detail">
+            {selectedImport ? (
+              <>
+                <div className="metric-grid compact">
+                  <Metric label="Rows" value={selectedImport.import.totalRecords} />
+                  <Metric label="Valid" value={selectedImport.import.validRecords} />
+                  <Metric label="Invalid" value={selectedImport.import.invalidRecords} />
+                  <Metric label="Stored orders" value={selectedImport.import.storedOrderCount} />
+                  <Metric label="Stored lines" value={selectedImport.import.storedLineCount} />
+                </div>
+
+                <h3>Orders</h3>
+                <DataTable
+                  rows={visibleHistoryOrders}
+                  columns={orderColumns}
+                  emptyText="No orders for this import yet."
+                  getRowKey={(row) =>
+                    String((row as OrderSummary).id ?? row.sourceOrderId)
+                  }
+                  activeRowKey={selectedOrderId ?? undefined}
+                  onRowClick={(row) => void handleSelectStoredOrder(row as OrderSummary)}
+                />
+
+                <h3>{historyLineLabel}</h3>
+                <DataTable
+                  rows={visibleHistoryLines}
+                  columns={lineColumns}
+                  emptyText="Choose an order to inspect its lines."
+                />
+
+                <h3>Validation errors</h3>
+                <ErrorTable errors={selectedImport.import.errors} />
+              </>
+            ) : (
+              <p className="muted">Run an import to build up history.</p>
+            )}
+          </div>
+        </div>
       </section>
     </main>
-  );
-}
-
-function StatusBar(props: {
-  loadingLabel: string;
-  message: string;
-  error: string;
-  selectedClient?: Client;
-  latestConfig?: ImportConfig;
-}) {
-  return (
-    <section className="status-strip" aria-live="polite">
-      <span>{props.loadingLabel || props.message || "Ready"}</span>
-      {props.error ? (
-        <strong className="error-text">{props.error}</strong>
-      ) : null}
-      <span>
-        {props.selectedClient
-          ? props.selectedClient.code
-          : "No client selected"}
-      </span>
-      <span>
-        {props.latestConfig
-          ? `Config v${props.latestConfig.version}`
-          : "No config yet"}
-      </span>
-    </section>
-  );
-}
-
-function SourcePreview({ source }: { source: PreparedImportSource | null }) {
-  return (
-    <div className="preview-block">
-      <h3>Source preview</h3>
-      <DataTable
-        rows={source?.previewRows ?? []}
-        emptyText="Load a source file to preview the first rows."
-      />
-    </div>
-  );
-}
-
-function SetupPanel(props: {
-  configContent: string;
-  configFormat: ConfigFormat;
-  configs: ImportConfig[];
-  isBusy: boolean;
-  newClientCode: string;
-  newClientName: string;
-  selectedClientId: string;
-  onClientCodeChange: (value: string) => void;
-  onClientNameChange: (value: string) => void;
-  onConfigContentChange: (value: string) => void;
-  onConfigFormatChange: (value: ConfigFormat) => void;
-  onCreateClient: () => void;
-  onLoadDemoConfig: () => void;
-  onPromoteConfig: (id: string) => void;
-  onUploadConfig: () => void;
-}) {
-  return (
-    <div className="panel-grid">
-      <div className="control-surface">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Client</p>
-            <h2>Create client</h2>
-          </div>
-        </div>
-        <div className="form-grid">
-          <label>
-            Code
-            <input
-              value={props.newClientCode}
-              onChange={(event) => props.onClientCodeChange(event.target.value)}
-            />
-          </label>
-          <label>
-            Name
-            <input
-              value={props.newClientName}
-              onChange={(event) => props.onClientNameChange(event.target.value)}
-            />
-          </label>
-        </div>
-        <button
-          className="primary"
-          onClick={props.onCreateClient}
-          disabled={props.isBusy}
-        >
-          Create client
-        </button>
-      </div>
-
-      <div className="control-surface wide">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Config</p>
-            <h2>Upload mapping rules</h2>
-          </div>
-          <button className="ghost" onClick={props.onLoadDemoConfig}>
-            Load demo config
-          </button>
-        </div>
-        <div className="form-grid compact">
-          <label>
-            Format
-            <select
-              value={props.configFormat}
-              onChange={(event) =>
-                props.onConfigFormatChange(event.target.value as ConfigFormat)
-              }
-            >
-              <option value="yaml">yaml</option>
-              <option value="json">json</option>
-            </select>
-          </label>
-        </div>
-        <textarea
-          value={props.configContent}
-          onChange={(event) => props.onConfigContentChange(event.target.value)}
-          spellCheck={false}
-        />
-        <button
-          className="primary"
-          onClick={props.onUploadConfig}
-          disabled={props.isBusy || !props.selectedClientId}
-        >
-          Upload config
-        </button>
-      </div>
-
-      <div className="control-surface wide">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Versions</p>
-            <h2>Development configs</h2>
-          </div>
-        </div>
-        <div className="version-list">
-          {props.configs.length === 0 ? (
-            <p className="muted">No configs for this client/environment.</p>
-          ) : (
-            props.configs.map((config) => (
-              <div className="version-row" key={config.id}>
-                <span>v{config.version}</span>
-                <span>{config.status}</span>
-                <span>{config.config.source?.type ?? "source"}</span>
-                <button
-                  className="ghost"
-                  onClick={() => props.onPromoteConfig(config.id)}
-                  disabled={props.isBusy || config.environment === "production"}
-                >
-                  Promote
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function HistoryPanel(props: {
-  batches: ImportBatch[];
-  orders: NormalizedOrder[];
-  selectedBatch: ImportBatch | null;
-  onSelectBatch: (id: string) => void;
-}) {
-  return (
-    <div className="panel-grid">
-      <div className="control-surface">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Batches</p>
-            <h2>Import history</h2>
-          </div>
-        </div>
-        <div className="batch-list">
-          {props.batches.length === 0 ? (
-            <p className="muted">No batches yet.</p>
-          ) : (
-            props.batches.map((batch) => (
-              <button
-                className="batch-row"
-                key={batch.id}
-                onClick={() => props.onSelectBatch(batch.id)}
-              >
-                <span>{batch.mode}</span>
-                <strong>
-                  {batch.validRecords}/{batch.totalRecords} valid
-                </strong>
-                <span>{formatDate(batch.createdAt)}</span>
-              </button>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div className="control-surface wide">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Batch</p>
-            <h2>Details</h2>
-          </div>
-        </div>
-        {props.selectedBatch ? (
-          <>
-            <div className="metric-grid compact-metrics">
-              <Metric label="Rows" value={props.selectedBatch.totalRecords} />
-              <Metric label="Valid" value={props.selectedBatch.validRecords} />
-              <Metric
-                label="Invalid"
-                value={props.selectedBatch.invalidRecords}
-              />
-              <Metric
-                label="Stored"
-                value={props.selectedBatch.storedRecords}
-              />
-            </div>
-            <ErrorTable errors={props.selectedBatch.errors} />
-          </>
-        ) : (
-          <p className="muted">
-            Choose a batch to inspect its validation output.
-          </p>
-        )}
-      </div>
-
-      <div className="control-surface wide">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Orders</p>
-            <h2>Stored normalized orders</h2>
-          </div>
-        </div>
-        <DataTable
-          rows={props.orders}
-          columns={orderColumns}
-          emptyText="No committed orders yet."
-        />
-      </div>
-    </div>
   );
 }
 
@@ -881,6 +741,9 @@ function DataTable(props: {
   rows: SourceRecord[];
   columns?: string[];
   emptyText: string;
+  getRowKey?: (row: SourceRecord, rowIndex: number) => string;
+  activeRowKey?: string;
+  onRowClick?: (row: SourceRecord) => void;
 }) {
   const columns = props.columns ?? inferColumns(props.rows);
 
@@ -899,13 +762,23 @@ function DataTable(props: {
           </tr>
         </thead>
         <tbody>
-          {props.rows.map((row, rowIndex) => (
-            <tr key={rowIndex}>
-              {columns.map((column) => (
-                <td key={column}>{formatValue(row[column])}</td>
-              ))}
-            </tr>
-          ))}
+          {props.rows.map((row, rowIndex) => {
+            const rowKey =
+              props.getRowKey?.(row, rowIndex) ?? String(rowIndex);
+            const isActive = props.activeRowKey === rowKey;
+
+            return (
+              <tr
+                key={rowKey}
+                className={`${props.onRowClick ? "clickable-row" : ""} ${isActive ? "active-row" : ""}`}
+                onClick={() => props.onRowClick?.(row)}
+              >
+                {columns.map((column) => (
+                  <td key={column}>{formatValue(row[column])}</td>
+                ))}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -916,10 +789,10 @@ function EmptyState() {
   return (
     <div className="empty-state">
       <p className="eyebrow">Next step</p>
-      <h3>Run a dry-run to inspect normalized rows before committing.</h3>
+      <h3>Load a marketplace export and preview the rolled-up orders.</h3>
       <p>
-        The sample file includes one clean row and one row with validation
-        errors.
+        The portal will keep row-level validation errors, order summaries, and
+        line-item detail together in one pass.
       </p>
     </div>
   );
@@ -927,15 +800,26 @@ function EmptyState() {
 
 function inferColumns(rows: SourceRecord[]): string[] {
   const columns = new Set<string>();
-  rows.slice(0, 5).forEach((row) => {
-    Object.keys(row).forEach((key) => columns.add(key));
-  });
-  return [...columns].slice(0, 8);
+
+  for (const row of rows) {
+    for (const key of Object.keys(row)) {
+      columns.add(key);
+      if (columns.size >= 14) {
+        return [...columns];
+      }
+    }
+  }
+
+  return [...columns];
 }
 
 function formatValue(value: unknown): string {
-  if (value === null || value === undefined) {
-    return "";
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
+
+  if (typeof value === "number") {
+    return Number.isInteger(value) ? String(value) : value.toFixed(2);
   }
 
   if (typeof value === "object") {
@@ -946,22 +830,25 @@ function formatValue(value: unknown): string {
 }
 
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
+  const date = new Date(value);
+  return Number.isFinite(date.getTime())
+    ? date.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : value;
 }
 
-function formatError(error: unknown): string {
-  if (error instanceof ApiClientError) {
-    return error.message;
+function formatError(caught: unknown): string {
+  if (caught instanceof ApiClientError) {
+    return caught.message;
   }
 
-  if (error instanceof Error) {
-    return error.message;
+  if (caught instanceof Error) {
+    return caught.message;
   }
 
-  return String(error);
+  return String(caught);
 }

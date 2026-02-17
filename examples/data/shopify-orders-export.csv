@@ -1,0 +1,4 @@
+Id,Name,Email,Financial Status,Fulfillment Status,Paid at,Created at,Currency,Subtotal,Shipping,Taxes,Total,Discount Amount,Source,Shipping Name,Shipping City,Shipping Country,Lineitem quantity,Lineitem name,Lineitem price,Lineitem SKU,Lineitem discount,Lineitem fulfillment status
+5001001,#1001,olivia@example.com,paid,fulfilled,2026-04-12T08:10:00Z,2026-04-12T08:02:00Z,EUR,118.00,8.90,22.21,139.11,9.99,web,Olivia Reed,Berlin,DE,1,Cashmere Throw,79.00,THROW-CASH-01,9.99,fulfilled
+,,,,,,,,,,,,,,,,,2,Brass Candle Holder,19.50,CANDLE-BRASS-02,0.00,fulfilled
+5001002,#1002,leo@example.com,authorized,unfulfilled,2026-04-13T09:18:00Z,2026-04-13T09:10:00Z,USD,48.00,6.00,4.56,58.56,0.00,pos,Leo Martin,Munich,DE,3,Glass Storage Jar,16.00,JAR-GLASS-03,0.00,unfulfilled

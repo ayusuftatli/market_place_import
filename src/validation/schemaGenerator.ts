@@ -1,39 +1,34 @@
 import Ajv, { type ErrorObject } from "ajv";
 import addFormats from "ajv-formats";
-import type { ImportTemplate, RowValidationError } from "../shared/types";
+import type { FieldConfig, RowValidationError } from "../shared/types";
 
 const ajv = new Ajv({ allErrors: true, coerceTypes: false });
 addFormats(ajv);
-const defaultMaxErrors = 50;
 
 export interface ValidateRecordOptions {
   maxErrors?: number;
 }
 
-export interface NormalizedRecordValidationResult {
+export interface RecordValidationResult {
   valid: boolean;
   errors: RowValidationError[];
 }
 
-export interface NormalizedRecordsValidationSummary {
-  validRecords: number;
-  invalidRecords: number;
-  errors: RowValidationError[];
-}
-
-export type NormalizedRecordValidator = (
+export type RecordValidator = (
   record: Record<string, unknown>,
   row: number,
-  options?: ValidateRecordOptions
-) => NormalizedRecordValidationResult;
+  options?: ValidateRecordOptions,
+) => RecordValidationResult;
 
-export function generateJsonSchema(config: ImportTemplate): Record<string, unknown> {
+export function generateJsonSchema(
+  fields: Record<string, FieldConfig>,
+): Record<string, unknown> {
   const properties: Record<string, Record<string, unknown>> = {};
   const required: string[] = [];
 
-  for (const [fieldName, fieldConfig] of Object.entries(config.fields)) {
+  for (const [fieldName, fieldConfig] of Object.entries(fields)) {
     const property: Record<string, unknown> = {
-      type: fieldConfig.type
+      type: fieldConfig.type,
     };
 
     if (fieldConfig.format) {
@@ -62,30 +57,21 @@ export function generateJsonSchema(config: ImportTemplate): Record<string, unkno
     type: "object",
     additionalProperties: true,
     properties,
-    required
+    required,
   };
 }
 
-export function validateNormalizedRecord(
-  config: ImportTemplate,
-  record: Record<string, unknown>,
-  row: number,
-  options: ValidateRecordOptions = {}
-): RowValidationError[] {
-  return createNormalizedRecordValidator(config)(record, row, options).errors;
-}
-
-export function createNormalizedRecordValidator(
-  config: ImportTemplate
-): NormalizedRecordValidator {
-  const validate = ajv.compile(generateJsonSchema(config));
+export function createRecordValidator(
+  fields: Record<string, FieldConfig>,
+): RecordValidator {
+  const validate = ajv.compile(generateJsonSchema(fields));
 
   return (record, row, options = {}) => {
     const valid = validate(record);
     if (valid) {
       return {
         valid: true,
-        errors: []
+        errors: [],
       };
     }
 
@@ -95,46 +81,15 @@ export function createNormalizedRecordValidator(
       valid: false,
       errors: (validate.errors ?? [])
         .slice(0, maxErrors)
-        .map((error) => toRowValidationError(error, record, row))
+        .map((error) => toRowValidationError(error, record, row)),
     };
-  };
-}
-
-export function validateNormalizedRecords(
-  config: ImportTemplate,
-  records: Array<Record<string, unknown>>
-): NormalizedRecordsValidationSummary {
-  const validateRecord = createNormalizedRecordValidator(config);
-  const maxErrors = config.settings?.maxErrors ?? defaultMaxErrors;
-  const errors: RowValidationError[] = [];
-  let validRecords = 0;
-  let invalidRecords = 0;
-
-  records.forEach((record, index) => {
-    const validation = validateRecord(record, index + 1, {
-      maxErrors: Math.max(maxErrors - errors.length, 0)
-    });
-
-    if (validation.valid) {
-      validRecords += 1;
-      return;
-    }
-
-    invalidRecords += 1;
-    errors.push(...validation.errors);
-  });
-
-  return {
-    validRecords,
-    invalidRecords,
-    errors
   };
 }
 
 function toRowValidationError(
   error: ErrorObject,
   record: Record<string, unknown>,
-  row: number
+  row: number,
 ): RowValidationError {
   const field =
     error.keyword === "required"
@@ -147,7 +102,7 @@ function toRowValidationError(
     row,
     field,
     message: formatMessage(error, field),
-    value
+    value,
   };
 }
 

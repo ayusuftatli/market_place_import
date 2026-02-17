@@ -10,7 +10,7 @@ async function main(): Promise<void> {
   }
 
   const server = app.listen(port, () => {
-    console.log(`Order import API listening on http://localhost:${port}`);
+    console.log(`Marketplace import portal listening on http://localhost:${port}`);
   });
 
   async function shutdown() {

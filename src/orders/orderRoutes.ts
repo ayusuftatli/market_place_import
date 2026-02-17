@@ -2,7 +2,7 @@ import { Router } from "express";
 import { asyncHandler } from "../shared/asyncHandler";
 import type { DataStore } from "../shared/dataStore";
 import { notFound } from "../shared/errors";
-import { assertObjectId, optionalString, requireString } from "../shared/http";
+import { optionalString, requireString } from "../shared/http";
 
 export function createOrderRouter(store: DataStore): Router {
   const router = Router();
@@ -10,26 +10,24 @@ export function createOrderRouter(store: DataStore): Router {
   router.get(
     "/",
     asyncHandler(async (req, res) => {
-      const clientId = optionalString(req.query.clientId);
-      if (clientId) {
-        assertObjectId(clientId, "clientId");
-      }
-      const orders = await store.orders.list({ clientId });
+      const importRunId = optionalString(req.query.importRunId);
+      const orders = await store.orders.list({ importRunId });
       res.json({ orders });
-    })
+    }),
   );
 
   router.get(
-    "/:id",
+    "/:id/lines",
     asyncHandler(async (req, res) => {
       const id = requireString(req.params.id, "id");
-      assertObjectId(id);
       const order = await store.orders.findById(id);
       if (!order) {
         throw notFound("Order not found");
       }
-      res.json(order);
-    })
+
+      const lines = await store.orderLines.list({ orderId: id });
+      res.json({ lines });
+    }),
   );
 
   return router;

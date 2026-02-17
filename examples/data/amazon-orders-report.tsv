@@ -1,0 +1,4 @@
+amazon-order-id	merchant-order-id	purchase-date	order-status	fulfillment-channel	sales-channel	order-channel	product-name	sku	asin	item-status	quantity	currency	item-price	item-tax	shipping-price	shipping-tax	item-promotion-discount	ship-promotion-discount	ship-city	ship-country
+112-9739103-000001	M-10001	2026-04-10T09:15:00Z	shipped	AFN	Amazon.de	Amazon.de	Organic Cotton Sheet Set	OCH-QUEEN	B0TESTAMZ1	shipped	1	EUR	89.90	17.08	0.00	0.00	10.00	0.00	Berlin	DE
+112-9739103-000002	M-10002	2026-04-11T14:42:00Z	unshipped	MFN	Amazon.de	Amazon.de	Stoneware Mug Set	MUG-SET-4	B0TESTAMZ2	unshipped	2	EUR	42.00	7.98	5.99	1.14	0.00	0.00	Hamburg	DE
+112-9739103-000002	M-10002	2026-04-11T14:42:00Z	unshipped	MFN	Amazon.de	Amazon.de	Linen Napkins	NAPKIN-SET	B0TESTAMZ3	unshipped	1	EUR	18.00	3.42	0.00	0.00	2.00	0.00	Hamburg	DE

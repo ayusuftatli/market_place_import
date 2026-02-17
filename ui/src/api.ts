@@ -1,13 +1,13 @@
 import type {
-  Client,
   ConfigFormat,
-  Environment,
-  ImportBatch,
-  ImportConfig,
+  ImportDetail,
   ImportRequestPayload,
   ImportResult,
-  NormalizedOrder,
+  ImportRun,
+  OrderLine,
   PreparedImportSource,
+  TemplateDetail,
+  TemplateSummary,
 } from "./types";
 
 interface ApiErrorBody {
@@ -29,92 +29,62 @@ export class ApiClientError extends Error {
 }
 
 export function buildImportRequest(input: {
-  clientId: string;
-  environment: Environment;
-  configVersion?: number;
+  templateKey: string;
   source: PreparedImportSource;
 }): ImportRequestPayload {
-  const base = {
-    clientId: input.clientId,
-    environment: input.environment,
-    ...(input.configVersion !== undefined
-      ? { configVersion: input.configVersion }
-      : {}),
-  };
-
-  if (input.source.sourceType === "csv") {
+  if (input.source.inputKind === "delimited") {
     return {
-      ...base,
-      sourceType: "csv",
-      csvContent: input.source.csvContent ?? "",
+      templateKey: input.templateKey,
+      inputKind: "delimited",
+      fileName: input.source.fileName,
+      content: input.source.content ?? "",
     };
   }
 
   return {
-    ...base,
-    sourceType: "json",
+    templateKey: input.templateKey,
+    inputKind: "records",
+    fileName: input.source.fileName,
     records: input.source.records ?? [],
   };
 }
 
-export async function listClients(): Promise<Client[]> {
-  const response = await requestJson<{ clients: Client[] }>("/clients");
-  return response.clients;
+export async function listTemplates(): Promise<TemplateSummary[]> {
+  const response = await requestJson<{ templates: TemplateSummary[] }>("/templates");
+  return response.templates;
 }
 
-export async function createClient(input: {
-  code: string;
-  name: string;
-}): Promise<Client> {
-  return requestJson<Client>("/clients", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+export async function getTemplate(key: string): Promise<TemplateDetail> {
+  return requestJson<TemplateDetail>(`/templates/${encodeURIComponent(key)}`);
 }
 
-export async function listConfigs(
-  input: {
-    clientId?: string;
-    environment?: Environment;
-  } = {},
-): Promise<ImportConfig[]> {
-  const params = new URLSearchParams();
-  if (input.clientId) {
-    params.set("clientId", input.clientId);
-  }
-  if (input.environment) {
-    params.set("environment", input.environment);
-  }
-
-  const query = params.toString();
-  const response = await requestJson<{ configs: ImportConfig[] }>(
-    `/configs${query ? `?${query}` : ""}`,
-  );
-  return response.configs;
-}
-
-export async function uploadConfig(input: {
-  clientId: string;
-  environment: Environment;
+export async function saveTemplateOverride(input: {
+  key: string;
   format: ConfigFormat;
   content: string;
-}): Promise<ImportConfig> {
-  return requestJson<ImportConfig>("/configs", {
-    method: "POST",
-    body: JSON.stringify(input),
+}): Promise<TemplateDetail> {
+  return requestJson<TemplateDetail>(
+    `/templates/${encodeURIComponent(input.key)}/override`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        format: input.format,
+        content: input.content,
+      }),
+    },
+  );
+}
+
+export async function deleteTemplateOverride(key: string): Promise<TemplateDetail> {
+  return requestJson<TemplateDetail>(`/templates/${encodeURIComponent(key)}/override`, {
+    method: "DELETE",
   });
 }
 
-export async function promoteConfig(id: string): Promise<ImportConfig> {
-  return requestJson<ImportConfig>(`/configs/${id}/promote`, {
-    method: "POST",
-  });
-}
-
-export async function dryRunImport(
+export async function previewImport(
   payload: ImportRequestPayload,
 ): Promise<ImportResult> {
-  return requestJson<ImportResult>("/imports/dry-run", {
+  return requestJson<ImportResult>("/imports/preview", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -129,26 +99,20 @@ export async function commitImport(
   });
 }
 
-export async function listBatches(clientId?: string): Promise<ImportBatch[]> {
-  const query = clientId ? `?clientId=${encodeURIComponent(clientId)}` : "";
-  const response = await requestJson<{ batches: ImportBatch[] }>(
-    `/batches${query}`,
-  );
-  return response.batches;
+export async function listImports(): Promise<ImportRun[]> {
+  const response = await requestJson<{ imports: ImportRun[] }>("/imports");
+  return response.imports;
 }
 
-export async function getBatch(id: string): Promise<ImportBatch> {
-  return requestJson<ImportBatch>(`/batches/${id}`);
+export async function getImport(id: string): Promise<ImportDetail> {
+  return requestJson<ImportDetail>(`/imports/${encodeURIComponent(id)}`);
 }
 
-export async function listOrders(
-  clientId?: string,
-): Promise<NormalizedOrder[]> {
-  const query = clientId ? `?clientId=${encodeURIComponent(clientId)}` : "";
-  const response = await requestJson<{ orders: NormalizedOrder[] }>(
-    `/orders${query}`,
+export async function getOrderLines(orderId: string): Promise<OrderLine[]> {
+  const response = await requestJson<{ lines: OrderLine[] }>(
+    `/orders/${encodeURIComponent(orderId)}/lines`,
   );
-  return response.orders;
+  return response.lines;
 }
 
 async function requestJson<T>(

@@ -1,6 +1,10 @@
-import type { ImportTemplate, TransformStep } from "../shared/types";
-import type { SourceRecord } from "../imports/sourceParsers";
 import { badRequest } from "../shared/errors";
+import type {
+  FieldConfig,
+  TransformStep,
+} from "../shared/types";
+
+export type SourceRecord = Record<string, unknown>;
 
 export interface TransformedRecord {
   normalized: Record<string, unknown>;
@@ -9,15 +13,16 @@ export interface TransformedRecord {
 
 export function mapAndTransformRecord(
   sourceRecord: SourceRecord,
-  config: ImportTemplate
+  fields: Record<string, FieldConfig>,
+  transforms?: Record<string, TransformStep | TransformStep[]>,
 ): TransformedRecord {
   const normalized: Record<string, unknown> = {};
 
-  for (const [fieldName, fieldConfig] of Object.entries(config.fields)) {
+  for (const [fieldName, fieldConfig] of Object.entries(fields)) {
     const aliases = [fieldName, ...(fieldConfig.aliases ?? [])];
     let value = findSourceValue(sourceRecord, aliases);
 
-    for (const step of normalizeSteps(config.transforms?.[fieldName])) {
+    for (const step of normalizeSteps(transforms?.[fieldName])) {
       value = applyTransform(step, value, sourceRecord);
     }
 
@@ -28,15 +33,16 @@ export function mapAndTransformRecord(
 
   return {
     normalized,
-    sourceRecord: { ...sourceRecord }
+    sourceRecord: { ...sourceRecord },
   };
 }
 
 export function findSourceValue(
   sourceRecord: SourceRecord,
-  aliases: string[]
+  aliases: string[],
 ): unknown {
   const sourceKeys = new Map<string, string>();
+
   for (const key of Object.keys(sourceRecord)) {
     const normalizedKey = normalizeKey(key);
     if (normalizedKey.length > 0 && !sourceKeys.has(normalizedKey)) {
@@ -59,8 +65,12 @@ export function findSourceValue(
   return undefined;
 }
 
+export function isMissing(value: unknown): boolean {
+  return value === undefined || value === null || value === "";
+}
+
 function normalizeSteps(
-  steps: TransformStep | TransformStep[] | undefined
+  steps: TransformStep | TransformStep[] | undefined,
 ): TransformStep[] {
   if (!steps) {
     return [];
@@ -72,7 +82,7 @@ function normalizeSteps(
 function applyTransform(
   step: TransformStep,
   value: unknown,
-  sourceRecord: SourceRecord
+  sourceRecord: SourceRecord,
 ): unknown {
   const normalizedStep = typeof step === "string" ? { type: step } : step;
 
@@ -104,10 +114,6 @@ function normalizeKey(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
-function isMissing(value: unknown): boolean {
-  return value === undefined || value === null || value === "";
-}
-
 function getDefaultValue(step: { value?: unknown; default?: unknown }): unknown {
   if (Object.prototype.hasOwnProperty.call(step, "value")) {
     return step.value;
@@ -130,7 +136,8 @@ function coerceNumber(value: unknown): unknown {
     return undefined;
   }
 
-  const number = Number(trimmed.replace(/,/g, ""));
+  const sanitized = trimmed.replace(/[$€£,\s]/g, "");
+  const number = Number(sanitized);
   return Number.isFinite(number) ? number : value;
 }
 
@@ -144,14 +151,14 @@ function normalizeDate(value: unknown): unknown {
   }
 
   const trimmed = value.trim();
-  const isoDate = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  const isoDate = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
   if (isoDate) {
     return isValidIsoDate(
       Number(isoDate[1]),
       Number(isoDate[2]),
-      Number(isoDate[3])
+      Number(isoDate[3]),
     )
-      ? trimmed
+      ? `${isoDate[1]}-${isoDate[2]}-${isoDate[3]}`
       : value;
   }
 
@@ -173,7 +180,7 @@ function isValidIsoDate(year: number, month: number, day: number): boolean {
 
 function mapEnum(
   value: unknown,
-  map: Record<string, unknown> | undefined
+  map: Record<string, unknown> | undefined,
 ): unknown {
   if (!map || isMissing(value)) {
     return value;

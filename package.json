@@ -1,7 +1,7 @@
 {
   "name": "fin_project",
   "version": "1.0.0",
-  "description": "Config-driven CSV/JSON order import API for e-commerce operations",
+  "description": "Client-facing marketplace import portal for Amazon, Shopify, and spreadsheet order exports",
   "main": "index.js",
   "scripts": {
     "dev": "npm run dev:api",

@@ -1,40 +1,41 @@
-export type Environment = "development" | "production";
-export type SourceType = "csv" | "json";
-export type ImportMode = "dry-run" | "commit";
-export type ConfigStatus = "active" | "archived";
 export type ConfigFormat = "yaml" | "json";
-export type ImportFileKind = "csv" | "json" | "excel";
+export type AcceptedFileKind = "csv" | "tsv" | "json" | "excel";
+export type InputKind = "delimited" | "records";
+export type ImportFileKind = AcceptedFileKind;
 
 export type SourceRecord = Record<string, unknown>;
 
-export interface Client {
-  id: string;
-  code: string;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
+export interface TemplateSummary {
+  key: string;
+  label: string;
+  description?: string;
+  acceptedFileKinds: AcceptedFileKind[];
+  sampleFileName: string;
+  templateVersion: number;
+  hasOverride: boolean;
 }
 
-export interface ImportConfig {
-  id: string;
-  clientId: string;
-  environment: Environment;
-  version: number;
-  status: ConfigStatus;
-  format: ConfigFormat;
-  config: {
-    source?: {
-      type?: SourceType;
-      name?: string;
-    };
-    settings?: {
-      allowPartialSuccess?: boolean;
-      maxErrors?: number;
-      previewLimit?: number;
-    };
+export interface MarketplaceTemplate {
+  key: string;
+  label: string;
+  description?: string;
+  templateVersion: number;
+  acceptedFileKinds: AcceptedFileKind[];
+  sampleFileName: string;
+}
+
+export interface TemplateDetail {
+  template: MarketplaceTemplate;
+  builtInContent: {
+    yaml: string;
+    json: string;
   };
-  createdAt: string;
-  promotedFromVersion?: number;
+  override: null | {
+    format: ConfigFormat;
+    content: string;
+    templateVersion: number;
+    updatedAt: string;
+  };
 }
 
 export interface RowValidationError {
@@ -44,64 +45,104 @@ export interface RowValidationError {
   value?: unknown;
 }
 
-export interface NormalizedOrder extends Record<string, unknown> {
+export interface OrderSummary extends Record<string, unknown> {
   id?: string;
-  batchId?: string;
-  clientId?: string;
-  externalOrderId: string;
-  customerName?: string;
-  customerEmail: string;
-  orderTotal: number;
-  currency: string;
+  importRunId?: string;
+  sourceOrderId: string;
+  sourceOrderName?: string;
+  salesChannel: string;
   orderDate: string;
-  status: string;
-  sourceRecord?: SourceRecord;
+  orderStatus: string;
+  paymentStatus?: string;
+  fulfillmentStatus?: string;
+  currency: string;
+  subtotalAmount: number;
+  shippingAmount: number;
+  taxAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  itemQuantity: number;
+  lineCount: number;
+  customerEmail?: string;
+  customerName?: string;
+  shipCity?: string;
+  shipCountry?: string;
   createdAt?: string;
 }
 
-export interface ImportResult {
-  batchId: string;
-  configVersion: number;
+export interface OrderLine extends Record<string, unknown> {
+  id?: string;
+  orderId?: string;
+  importRunId?: string;
+  sourceOrderId: string;
+  sourceLineId?: string;
+  salesChannel: string;
+  sku?: string;
+  asin?: string;
+  productTitle: string;
+  variantTitle?: string;
+  quantity: number;
+  unitPriceAmount: number;
+  lineSubtotalAmount: number;
+  lineTaxAmount: number;
+  lineDiscountAmount: number;
+  currency: string;
+  lineStatus?: string;
+  rowNumber?: number;
+  createdAt?: string;
+}
+
+export interface ImportRun {
+  id: string;
+  templateKey: string;
+  templateVersion: number;
+  fileName: string;
+  inputKind: InputKind;
+  sourceKind: "csv" | "tsv" | "json";
+  mode: "preview" | "commit";
   totalRecords: number;
   validRecords: number;
   invalidRecords: number;
   storedOrderCount: number;
+  storedLineCount: number;
   errors: RowValidationError[];
-  normalizedPreview: NormalizedOrder[];
+  orderPreview: OrderSummary[];
+  linePreview: OrderLine[];
+  createdAt: string;
 }
 
-export interface ImportBatch {
-  id: string;
-  clientId: string;
-  client?: Client | null;
-  environment: Environment;
-  configId: string;
-  configVersion: number;
-  sourceType: SourceType;
-  mode: ImportMode;
+export interface ImportResult {
+  importRunId: string;
+  templateVersion: number;
   totalRecords: number;
   validRecords: number;
   invalidRecords: number;
-  storedRecords: number;
+  storedOrderCount: number;
+  storedLineCount: number;
   errors: RowValidationError[];
-  createdAt: string;
+  orderPreview: OrderSummary[];
+  linePreview: OrderLine[];
+}
+
+export interface ImportDetail {
+  import: ImportRun;
+  orders: OrderSummary[];
 }
 
 export interface PreparedImportSource {
   kind: ImportFileKind;
+  inputKind: InputKind;
   fileName: string;
-  sourceType: SourceType;
   recordCount: number;
   previewRows: SourceRecord[];
-  csvContent?: string;
+  content?: string;
   records?: SourceRecord[];
 }
 
 export interface ImportRequestPayload {
-  clientId: string;
-  environment: Environment;
-  configVersion?: number;
-  sourceType: SourceType;
-  csvContent?: string;
+  templateKey: string;
+  inputKind: InputKind;
+  fileName: string;
+  content?: string;
   records?: SourceRecord[];
 }
