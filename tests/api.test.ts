@@ -3,10 +3,14 @@ import { describe, expect, it } from "vitest";
 import { demoConfig, createTestContext, mixedCsv, validCsv } from "./helpers";
 import { requestApp, requestRawApp } from "./httpTestClient";
 
-async function createClient(app: ReturnType<typeof createTestContext>["app"]) {
+async function createClient(
+  app: ReturnType<typeof createTestContext>["app"],
+  code = "urban-home-store",
+  name = "Urban Home Store"
+) {
   const response = await requestApp(app, "POST", "/clients", {
-    code: "urban-home-store",
-    name: "Urban Home Store"
+    code,
+    name
   });
 
   return response.body as { id: string; code: string; name: string };
@@ -455,6 +459,202 @@ fields:
       sourceType: "json",
       mode: "commit",
       storedRecords: 1
+    });
+  });
+
+  it("lists dry-run and committed batch history with details and row errors", async () => {
+    const { app } = createTestContext();
+    const client = await createClient(app);
+    await uploadConfig(app, client.id);
+
+    const dryRun = await requestApp(app, "POST", "/imports/dry-run", {
+      clientId: client.id,
+      environment: "development",
+      sourceType: "csv",
+      csvContent: mixedCsv
+    });
+    const commit = await requestApp(app, "POST", "/imports", {
+      clientId: client.id,
+      environment: "development",
+      sourceType: "csv",
+      csvContent: validCsv
+    });
+
+    const list = await requestApp(app, "GET", "/batches");
+
+    expect(list.status).toBe(200);
+    expect(list.body.batches).toHaveLength(2);
+    expect(list.body.batches).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: dryRun.body.batchId,
+          clientId: client.id,
+          client: expect.objectContaining({
+            id: client.id,
+            code: "urban-home-store",
+            name: "Urban Home Store"
+          }),
+          environment: "development",
+          configVersion: 1,
+          sourceType: "csv",
+          mode: "dry-run",
+          totalRecords: 2,
+          validRecords: 1,
+          invalidRecords: 1,
+          storedRecords: 0,
+          createdAt: expect.any(String),
+          errors: expect.arrayContaining([
+            expect.objectContaining({ row: 2, field: "customerEmail" }),
+            expect.objectContaining({ row: 2, field: "orderTotal" })
+          ])
+        }),
+        expect.objectContaining({
+          id: commit.body.batchId,
+          clientId: client.id,
+          client: expect.objectContaining({ id: client.id }),
+          environment: "development",
+          configVersion: 1,
+          sourceType: "csv",
+          mode: "commit",
+          totalRecords: 1,
+          validRecords: 1,
+          invalidRecords: 0,
+          storedRecords: 1,
+          createdAt: expect.any(String),
+          errors: []
+        })
+      ])
+    );
+
+    const detail = await requestApp(app, "GET", `/batches/${dryRun.body.batchId}`);
+
+    expect(detail.status).toBe(200);
+    expect(detail.body).toMatchObject({
+      id: dryRun.body.batchId,
+      clientId: client.id,
+      client: expect.objectContaining({ id: client.id }),
+      mode: "dry-run",
+      totalRecords: 2,
+      validRecords: 1,
+      invalidRecords: 1,
+      storedRecords: 0
+    });
+    expect(detail.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ row: 2, field: "customerEmail" }),
+        expect.objectContaining({ row: 2, field: "orderTotal" })
+      ])
+    );
+  });
+
+  it("filters normalized order listings by client and returns order details", async () => {
+    const { app } = createTestContext();
+    const firstClient = await createClient(app);
+    const secondClient = await createClient(
+      app,
+      "bright-market",
+      "Bright Market"
+    );
+    await uploadConfig(app, firstClient.id);
+    await uploadConfig(app, secondClient.id);
+
+    await requestApp(app, "POST", "/imports", {
+      clientId: firstClient.id,
+      environment: "development",
+      sourceType: "csv",
+      csvContent: validCsv
+    });
+    await requestApp(app, "POST", "/imports", {
+      clientId: secondClient.id,
+      environment: "development",
+      sourceType: "csv",
+      csvContent: validCsv
+    });
+
+    const allOrders = await requestApp(app, "GET", "/orders");
+    const filtered = await requestApp(
+      app,
+      "GET",
+      `/orders?clientId=${firstClient.id}`
+    );
+
+    expect(allOrders.status).toBe(200);
+    expect(allOrders.body.orders).toHaveLength(2);
+    expect(filtered.status).toBe(200);
+    expect(filtered.body.orders).toHaveLength(1);
+    expect(filtered.body.orders[0]).toMatchObject({
+      clientId: firstClient.id,
+      externalOrderId: "1001",
+      customerEmail: "sarah@example.com",
+      orderTotal: 84.5,
+      currency: "EUR",
+      orderDate: "2026-04-10",
+      status: "paid",
+      sourceRecord: expect.objectContaining({ "Order ID": "1001" }),
+      createdAt: expect.any(String)
+    });
+
+    const detail = await requestApp(
+      app,
+      "GET",
+      `/orders/${filtered.body.orders[0].id}`
+    );
+
+    expect(detail.status).toBe(200);
+    expect(detail.body).toMatchObject({
+      id: filtered.body.orders[0].id,
+      batchId: filtered.body.orders[0].batchId,
+      clientId: firstClient.id,
+      externalOrderId: "1001",
+      customerName: "Sarah Miller",
+      customerEmail: "sarah@example.com",
+      orderTotal: 84.5,
+      sourceRecord: expect.objectContaining({ "Order ID": "1001" })
+    });
+  });
+
+  it("returns clean errors for invalid and missing batch or order IDs", async () => {
+    const { app } = createTestContext();
+    const missingId = new Types.ObjectId().toString();
+
+    const invalidBatchId = await requestApp(app, "GET", "/batches/not-an-id");
+    const missingBatch = await requestApp(app, "GET", `/batches/${missingId}`);
+    const invalidBatchClientFilter = await requestApp(
+      app,
+      "GET",
+      "/batches?clientId=not-an-id"
+    );
+    const invalidOrderId = await requestApp(app, "GET", "/orders/not-an-id");
+    const missingOrder = await requestApp(app, "GET", `/orders/${missingId}`);
+    const invalidOrderClientFilter = await requestApp(
+      app,
+      "GET",
+      "/orders?clientId=not-an-id"
+    );
+
+    expect(invalidBatchId.status).toBe(400);
+    expect(invalidBatchId.body).toEqual({
+      error: { message: "Invalid id" }
+    });
+    expect(missingBatch.status).toBe(404);
+    expect(missingBatch.body).toEqual({
+      error: { message: "Batch not found" }
+    });
+    expect(invalidBatchClientFilter.status).toBe(400);
+    expect(invalidBatchClientFilter.body).toEqual({
+      error: { message: "Invalid clientId" }
+    });
+    expect(invalidOrderId.status).toBe(400);
+    expect(invalidOrderId.body).toEqual({
+      error: { message: "Invalid id" }
+    });
+    expect(missingOrder.status).toBe(404);
+    expect(missingOrder.body).toEqual({
+      error: { message: "Order not found" }
+    });
+    expect(invalidOrderClientFilter.status).toBe(400);
+    expect(invalidOrderClientFilter.body).toEqual({
+      error: { message: "Invalid clientId" }
     });
   });
 });
