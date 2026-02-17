@@ -17,10 +17,20 @@ export interface FieldConfig {
   max?: number;
 }
 
+export type TransformName =
+  | "uppercase"
+  | "lowercase"
+  | "trim"
+  | "default"
+  | "source"
+  | "enumMap"
+  | "numberCoerce"
+  | "dateNormalize";
+
 export type TransformStep =
-  | string
+  | TransformName
   | {
-      type: string;
+      type: TransformName;
       value?: unknown;
       field?: string;
       map?: Record<string, unknown>;

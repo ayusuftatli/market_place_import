@@ -1,5 +1,6 @@
 import type { ImportTemplate, TransformStep } from "../shared/types";
 import type { SourceRecord } from "../imports/sourceParsers";
+import { badRequest } from "../shared/errors";
 
 export interface TransformedRecord {
   normalized: Record<string, unknown>;
@@ -27,7 +28,7 @@ export function mapAndTransformRecord(
 
   return {
     normalized,
-    sourceRecord
+    sourceRecord: { ...sourceRecord }
   };
 }
 
@@ -37,11 +38,19 @@ export function findSourceValue(
 ): unknown {
   const sourceKeys = new Map<string, string>();
   for (const key of Object.keys(sourceRecord)) {
-    sourceKeys.set(normalizeKey(key), key);
+    const normalizedKey = normalizeKey(key);
+    if (normalizedKey.length > 0 && !sourceKeys.has(normalizedKey)) {
+      sourceKeys.set(normalizedKey, key);
+    }
   }
 
   for (const alias of aliases) {
-    const key = sourceKeys.get(normalizeKey(alias));
+    const normalizedAlias = normalizeKey(alias);
+    if (normalizedAlias.length === 0) {
+      continue;
+    }
+
+    const key = sourceKeys.get(normalizedAlias);
     if (key !== undefined) {
       return sourceRecord[key];
     }
@@ -73,7 +82,7 @@ function applyTransform(
         ? findSourceValue(sourceRecord, [normalizedStep.field])
         : value;
     case "default":
-      return isMissing(value) ? normalizedStep.value ?? normalizedStep.default : value;
+      return isMissing(value) ? getDefaultValue(normalizedStep) : value;
     case "trim":
       return typeof value === "string" ? value.trim() : value;
     case "uppercase":
@@ -87,16 +96,24 @@ function applyTransform(
     case "enumMap":
       return mapEnum(value, normalizedStep.map);
     default:
-      return value;
+      throw badRequest(`Unsupported transform '${String(normalizedStep.type)}'`);
   }
 }
 
 function normalizeKey(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 function isMissing(value: unknown): boolean {
   return value === undefined || value === null || value === "";
+}
+
+function getDefaultValue(step: { value?: unknown; default?: unknown }): unknown {
+  if (Object.prototype.hasOwnProperty.call(step, "value")) {
+    return step.value;
+  }
+
+  return step.default;
 }
 
 function coerceNumber(value: unknown): unknown {
@@ -129,12 +146,29 @@ function normalizeDate(value: unknown): unknown {
   const trimmed = value.trim();
   const isoDate = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
   if (isoDate) {
-    const date = new Date(`${trimmed}T00:00:00.000Z`);
-    return Number.isFinite(date.getTime()) ? trimmed : value;
+    return isValidIsoDate(
+      Number(isoDate[1]),
+      Number(isoDate[2]),
+      Number(isoDate[3])
+    )
+      ? trimmed
+      : value;
   }
 
   const parsed = new Date(trimmed);
-  return Number.isFinite(parsed.getTime()) ? parsed.toISOString().slice(0, 10) : value;
+  return Number.isFinite(parsed.getTime())
+    ? parsed.toISOString().slice(0, 10)
+    : value;
+}
+
+function isValidIsoDate(year: number, month: number, day: number): boolean {
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
 }
 
 function mapEnum(
@@ -145,7 +179,7 @@ function mapEnum(
     return value;
   }
 
-  const key = String(value);
+  const key = typeof value === "string" ? value.trim() : String(value);
   if (Object.prototype.hasOwnProperty.call(map, key)) {
     return map[key];
   }

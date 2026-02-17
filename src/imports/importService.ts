@@ -1,7 +1,6 @@
 import { badRequest, notFound } from "../shared/errors";
 import type { DataStore } from "../shared/dataStore";
 import type {
-  CreateOrderInput,
   Environment,
   ImportMode,
   ImportTemplate,
@@ -11,7 +10,7 @@ import type {
 } from "../shared/types";
 import { parseSourceRecords } from "./sourceParsers";
 import { mapAndTransformRecord } from "../transformation/transformer";
-import { validateNormalizedRecord } from "../validation/schemaGenerator";
+import { createNormalizedRecordValidator } from "../validation/schemaGenerator";
 
 export interface ImportRequestInput {
   clientId: string;
@@ -125,33 +124,21 @@ function processRecords(
   const validOrders: Array<
     NormalizedOrderFields & { sourceRecord: Record<string, unknown> }
   > = [];
+  const validateRecord = createNormalizedRecordValidator(config);
   let validRecords = 0;
   let invalidRecords = 0;
 
   sourceRecords.forEach((sourceRecord, index) => {
     const row = index + 1;
     const transformed = mapAndTransformRecord(sourceRecord, config);
-    const recordErrors =
-      errors.length >= maxErrors
-        ? []
-        : validateNormalizedRecord(config, transformed.normalized, row);
+    const validation = validateRecord(transformed.normalized, row, {
+      maxErrors: Math.max(maxErrors - errors.length, 0)
+    });
 
-    if (recordErrors.length > 0) {
+    if (!validation.valid) {
       invalidRecords += 1;
-      errors.push(...recordErrors.slice(0, maxErrors - errors.length));
+      errors.push(...validation.errors);
       return;
-    }
-
-    if (errors.length >= maxErrors) {
-      const uncheckedErrors = validateNormalizedRecord(
-        config,
-        transformed.normalized,
-        row
-      );
-      if (uncheckedErrors.length > 0) {
-        invalidRecords += 1;
-        return;
-      }
     }
 
     validRecords += 1;
@@ -193,5 +180,3 @@ export function normalizeImportRequestBody(body: Record<string, unknown>): {
     sourceType
   };
 }
-
-export type ValidOrderForStorage = CreateOrderInput;
