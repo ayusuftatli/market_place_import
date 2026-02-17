@@ -2,7 +2,7 @@
   "info": {
     "name": "Order Import Platform Demo",
     "_postman_id": "6fc82f0c-358a-47aa-9dd7-62c951fbd4b4",
-    "description": "Demo flow for the configurable CSV/JSON e-commerce order import API.",
+    "description": "End-to-end demo flow for the configurable CSV/JSON e-commerce order import API.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -46,6 +46,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
+              "pm.test('client is created', () => pm.response.to.have.status(201));",
               "const body = pm.response.json();",
               "pm.collectionVariables.set('clientId', body.id);"
             ]
@@ -66,7 +67,7 @@
         "url": "{{baseUrl}}/configs",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"environment\": \"development\",\n  \"format\": \"yaml\",\n  \"content\": \"client: urban-home-store\\nenvironment: development\\nsource:\\n  type: csv\\n  name: partner-order-export\\nfields:\\n  externalOrderId:\\n    type: string\\n    required: true\\n    aliases: [Order ID, order_id, id]\\n  customerName:\\n    type: string\\n    aliases: [Full Name, Customer Name, name]\\n  customerEmail:\\n    type: string\\n    required: true\\n    format: email\\n    aliases: [Customer Email, email]\\n  orderTotal:\\n    type: number\\n    required: true\\n    min: 0\\n    aliases: [Total, Order Total, amount]\\n  currency:\\n    type: string\\n    required: true\\n    enum: [USD, EUR, GBP]\\n    aliases: [Currency, currency_code]\\n  orderDate:\\n    type: string\\n    required: true\\n    format: date\\n    aliases: [Order Date, date]\\n  status:\\n    type: string\\n    required: true\\n    enum: [paid, pending, cancelled, refunded]\\n    aliases: [Status, Order Status]\\ntransforms:\\n  externalOrderId: [trim]\\n  customerName:\\n    - trim\\n    - type: default\\n      value: Unknown Customer\\n  customerEmail: [trim, lowercase]\\n  orderTotal: [trim, numberCoerce]\\n  currency:\\n    - trim\\n    - uppercase\\n    - type: default\\n      value: USD\\n  orderDate: [trim, dateNormalize]\\n  status:\\n    - trim\\n    - lowercase\\n    - type: enumMap\\n      map:\\n        paid: paid\\n        complete: paid\\n        completed: paid\\n        pending: pending\\n        cancelled: cancelled\\n        canceled: cancelled\\n        refunded: refunded\\nsettings:\\n  allowPartialSuccess: true\\n  maxErrors: 20\\n  previewLimit: 10\\n\"\n}"
+          "raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"environment\": \"development\",\n  \"format\": \"yaml\",\n  \"content\": \"client: urban-home-store\\nenvironment: development\\nversion: 1\\nsource:\\n  type: csv\\n  name: partner-order-export\\nfields:\\n  externalOrderId:\\n    type: string\\n    required: true\\n    aliases:\\n      - Order ID\\n      - order_id\\n      - id\\n  customerName:\\n    type: string\\n    aliases:\\n      - Full Name\\n      - Customer Name\\n      - name\\n  customerEmail:\\n    type: string\\n    required: true\\n    format: email\\n    aliases:\\n      - Customer Email\\n      - email\\n  orderTotal:\\n    type: number\\n    required: true\\n    min: 0\\n    aliases:\\n      - Total\\n      - Order Total\\n      - amount\\n  currency:\\n    type: string\\n    required: true\\n    enum:\\n      - USD\\n      - EUR\\n      - GBP\\n    aliases:\\n      - Currency\\n      - currency_code\\n  orderDate:\\n    type: string\\n    required: true\\n    format: date\\n    aliases:\\n      - Order Date\\n      - date\\n  status:\\n    type: string\\n    required: true\\n    enum:\\n      - paid\\n      - pending\\n      - cancelled\\n      - refunded\\n    aliases:\\n      - Status\\n      - Order Status\\ntransforms:\\n  externalOrderId:\\n    - trim\\n  customerName:\\n    - trim\\n    - type: default\\n      value: Unknown Customer\\n  customerEmail:\\n    - trim\\n    - lowercase\\n  orderTotal:\\n    - trim\\n    - numberCoerce\\n  currency:\\n    - trim\\n    - uppercase\\n    - type: default\\n      value: USD\\n  orderDate:\\n    - trim\\n    - dateNormalize\\n  status:\\n    - trim\\n    - lowercase\\n    - type: enumMap\\n      map:\\n        paid: paid\\n        complete: paid\\n        completed: paid\\n        pending: pending\\n        cancelled: cancelled\\n        canceled: cancelled\\n        refunded: refunded\\nsettings:\\n  allowPartialSuccess: true\\n  maxErrors: 20\\n  previewLimit: 10\\n\"\n}"
         }
       },
       "event": [
@@ -75,6 +76,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
+              "pm.test('config is uploaded', () => pm.response.to.have.status(201));",
               "const body = pm.response.json();",
               "pm.collectionVariables.set('configId', body.id);"
             ]
@@ -104,8 +106,48 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "const body = pm.response.json();",
-              "pm.collectionVariables.set('batchId', body.batchId);"
+              "pm.test('dry-run finds one valid row', () => {",
+              "  pm.response.to.have.status(201);",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.totalRecords).to.eql(2);",
+              "  pm.expect(body.validRecords).to.eql(1);",
+              "  pm.expect(body.invalidRecords).to.eql(1);",
+              "});",
+              "pm.collectionVariables.set('batchId', pm.response.json().batchId);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dry-Run JSON Import",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/imports/dry-run",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"environment\": \"development\",\n  \"sourceType\": \"json\",\n  \"records\": [\n    {\n      \"order_id\": \"1001\",\n      \"email\": \"sarah@example.com\",\n      \"Customer Name\": \"Sarah Miller\",\n      \"Order Total\": \"84.50\",\n      \"Currency\": \"eur\",\n      \"Order Date\": \"2026-04-10\",\n      \"Status\": \"complete\"\n    },\n    {\n      \"order_id\": \"1002\",\n      \"email\": \"bad-email\",\n      \"Customer Name\": \"Tom Becker\",\n      \"Order Total\": \"-12.00\",\n      \"Currency\": \"usd\",\n      \"Order Date\": \"2026-04-11\",\n      \"Status\": \"Paid\"\n    }\n  ]\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('JSON dry-run follows the same outcome', () => {",
+              "  pm.response.to.have.status(201);",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.totalRecords).to.eql(2);",
+              "  pm.expect(body.validRecords).to.eql(1);",
+              "  pm.expect(body.invalidRecords).to.eql(1);",
+              "});"
             ]
           }
         }
@@ -133,8 +175,12 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "const body = pm.response.json();",
-              "pm.collectionVariables.set('batchId', body.batchId);"
+              "pm.test('commit stores one valid order', () => {",
+              "  pm.response.to.have.status(201);",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.storedOrderCount).to.eql(1);",
+              "});",
+              "pm.collectionVariables.set('batchId', pm.response.json().batchId);"
             ]
           }
         }
@@ -145,14 +191,39 @@
       "request": {
         "method": "GET",
         "url": "{{baseUrl}}/batches/{{batchId}}"
-      }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('batch detail is returned', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "List Orders",
       "request": {
         "method": "GET",
         "url": "{{baseUrl}}/orders?clientId={{clientId}}"
-      }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('one order is stored for the client', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().orders).to.have.length(1);",
+              "});"
+            ]
+          }
+        }
+      ]
     }
   ]
 }
