@@ -291,7 +291,7 @@ fields:
   });
 
   it("commits valid rows and preserves source records when partial success is enabled", async () => {
-    const { app } = createTestContext();
+    const { app, store } = createTestContext();
     const client = await createClient(app);
     await uploadConfig(app, client.id);
 
@@ -303,7 +303,34 @@ fields:
     });
 
     expect(result.status).toBe(201);
-    expect(result.body.storedOrderCount).toBe(1);
+    expect(result.body).toMatchObject({
+      configVersion: 1,
+      totalRecords: 2,
+      validRecords: 1,
+      invalidRecords: 1,
+      storedOrderCount: 1
+    });
+
+    await expect(store.orders.count({ clientId: client.id })).resolves.toBe(1);
+    const storedOrders = await store.orders.list({ clientId: client.id });
+    expect(storedOrders[0]).toMatchObject({
+      batchId: result.body.batchId,
+      clientId: client.id,
+      externalOrderId: "1001",
+      customerEmail: "sarah@example.com",
+      orderTotal: 84.5,
+      currency: "EUR",
+      status: "paid",
+      sourceRecord: expect.objectContaining({ "Order ID": "1001" })
+    });
+
+    const batch = await store.batches.findById(result.body.batchId);
+    expect(batch).toMatchObject({
+      clientId: client.id,
+      configVersion: 1,
+      mode: "commit",
+      storedRecords: 1
+    });
 
     const orders = await requestApp(app, "GET", `/orders?clientId=${client.id}`);
     expect(orders.status).toBe(200);
@@ -328,7 +355,7 @@ fields:
   });
 
   it("does not commit any rows when partial success is disabled", async () => {
-    const { app } = createTestContext();
+    const { app, store } = createTestContext();
     const client = await createClient(app);
     await uploadConfig(
       app,
@@ -350,7 +377,23 @@ fields:
     });
 
     expect(result.status).toBe(201);
-    expect(result.body.storedOrderCount).toBe(0);
+    expect(result.body).toMatchObject({
+      totalRecords: 2,
+      validRecords: 1,
+      invalidRecords: 1,
+      storedOrderCount: 0
+    });
+    await expect(store.orders.count({ clientId: client.id })).resolves.toBe(0);
+
+    const batch = await store.batches.findById(result.body.batchId);
+    expect(batch).toMatchObject({
+      clientId: client.id,
+      configVersion: 1,
+      mode: "commit",
+      validRecords: 1,
+      invalidRecords: 1,
+      storedRecords: 0
+    });
 
     const orders = await requestApp(app, "GET", `/orders?clientId=${client.id}`);
     expect(orders.status).toBe(200);
@@ -358,7 +401,7 @@ fields:
   });
 
   it("commits fully valid JSON imports", async () => {
-    const { app } = createTestContext();
+    const { app, store } = createTestContext();
     const client = await createClient(app);
     await uploadConfig(
       app,
@@ -388,6 +431,30 @@ fields:
       validRecords: 1,
       invalidRecords: 0,
       storedOrderCount: 1
+    });
+
+    await expect(store.orders.count({ clientId: client.id })).resolves.toBe(1);
+    const storedOrders = await store.orders.list({ clientId: client.id });
+    expect(storedOrders[0]).toMatchObject({
+      batchId: result.body.batchId,
+      clientId: client.id,
+      externalOrderId: "1001",
+      customerEmail: "sarah@example.com",
+      customerName: "Sarah Miller",
+      orderTotal: 84.5,
+      currency: "EUR",
+      orderDate: "2026-04-10",
+      status: "paid",
+      sourceRecord: expect.objectContaining({ order_id: "1001" })
+    });
+
+    const batch = await store.batches.findById(result.body.batchId);
+    expect(batch).toMatchObject({
+      clientId: client.id,
+      configVersion: 1,
+      sourceType: "json",
+      mode: "commit",
+      storedRecords: 1
     });
   });
 });
