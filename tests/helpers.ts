@@ -1,12 +1,14 @@
 import type { Express } from "express";
-import { createApp } from "../src/app";
+import { createApp, type CreateAppOptions } from "../src/app";
 import { createMemoryDataStore, type DataStore } from "../src/shared/dataStore";
 import type { ImportTemplate } from "../src/shared/types";
 
-export function createTestContext(): { app: Express; store: DataStore } {
+export function createTestContext(
+  options: Omit<CreateAppOptions, "store"> = {}
+): { app: Express; store: DataStore } {
   const store = createMemoryDataStore();
   return {
-    app: createApp({ store }),
+    app: createApp({ store, ...options }),
     store
   };
 }
