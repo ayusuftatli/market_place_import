@@ -4,7 +4,9 @@ import type {
   ImportRequestPayload,
   ImportResult,
   ImportRun,
+  OrderExplorerQuery,
   OrderLine,
+  OrderListResponse,
   PreparedImportSource,
   TemplateDetail,
   TemplateSummary,
@@ -108,11 +110,57 @@ export async function getImport(id: string): Promise<ImportDetail> {
   return requestJson<ImportDetail>(`/imports/${encodeURIComponent(id)}`);
 }
 
+export async function listOrders(
+  query: OrderExplorerQuery = {},
+): Promise<OrderListResponse> {
+  const queryString = buildOrderQueryString(query);
+  return requestJson<OrderListResponse>(
+    queryString.length > 0 ? `/orders?${queryString}` : "/orders",
+  );
+}
+
 export async function getOrderLines(orderId: string): Promise<OrderLine[]> {
   const response = await requestJson<{ lines: OrderLine[] }>(
     `/orders/${encodeURIComponent(orderId)}/lines`,
   );
   return response.lines;
+}
+
+function buildOrderQueryString(query: OrderExplorerQuery): string {
+  const params = new URLSearchParams();
+
+  appendQueryValue(params, "q", query.q);
+  appendQueryValue(params, "importRunId", query.importRunId);
+  appendQueryValue(params, "salesChannel", query.salesChannel);
+  appendQueryValue(params, "orderStatus", query.orderStatus);
+  appendQueryValue(params, "paymentStatus", query.paymentStatus);
+  appendQueryValue(params, "fulfillmentStatus", query.fulfillmentStatus);
+  appendQueryValue(params, "dateFrom", query.dateFrom);
+  appendQueryValue(params, "dateTo", query.dateTo);
+  appendQueryValue(params, "minTotal", query.minTotal);
+  appendQueryValue(params, "maxTotal", query.maxTotal);
+  appendQueryValue(params, "sort", query.sort);
+  appendQueryValue(params, "page", query.page);
+  appendQueryValue(params, "pageSize", query.pageSize);
+
+  return params.toString();
+}
+
+function appendQueryValue(
+  params: URLSearchParams,
+  key: string,
+  value: number | string | undefined,
+) {
+  if (value === undefined) {
+    return;
+  }
+
+  const serialized = String(value).trim();
+  if (serialized.length === 0) {
+    return;
+  }
+
+  params.set(key, serialized);
 }
 
 async function requestJson<T>(

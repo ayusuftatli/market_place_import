@@ -5,10 +5,9 @@ import {
   buildImportRequest,
   commitImport,
   deleteTemplateOverride,
-  getImport,
   getOrderLines,
   getTemplate,
-  listImports,
+  listOrders,
   listTemplates,
   previewImport,
   saveTemplateOverride,
@@ -30,10 +29,11 @@ import {
 } from "./importFiles";
 import type {
   ConfigFormat,
-  ImportDetail,
   ImportResult,
-  ImportRun,
+  OrderExplorerQuery,
   OrderLine,
+  OrderListResponse,
+  OrderListSort,
   OrderSummary,
   PreparedImportSource,
   RowValidationError,
@@ -63,14 +63,63 @@ const lineColumns = [
   "lineDiscountAmount",
 ];
 
+const storedOrderColumns = [
+  "sourceOrderId",
+  "sourceOrderName",
+  "salesChannel",
+  "orderDate",
+  "orderStatus",
+  "paymentStatus",
+  "fulfillmentStatus",
+  "customerName",
+  "shipCity",
+  "shipCountry",
+  "totalAmount",
+  "lineCount",
+];
+
+const orderSortOptions: { value: OrderListSort; label: string }[] = [
+  { value: "createdAt:desc", label: "Newest stored" },
+  { value: "createdAt:asc", label: "Oldest stored" },
+  { value: "orderDate:desc", label: "Newest order date" },
+  { value: "orderDate:asc", label: "Oldest order date" },
+  { value: "totalAmount:desc", label: "Highest total" },
+  { value: "totalAmount:asc", label: "Lowest total" },
+];
+
+const pageSizeOptions = [10, 25, 50, 100];
+
+const defaultOrderQuery: OrderExplorerQuery = {
+  sort: "createdAt:desc",
+  page: 1,
+  pageSize: 25,
+};
+
+const emptyOrderList: OrderListResponse = {
+  orders: [],
+  total: 0,
+  page: 1,
+  pageSize: 25,
+};
+
+type AppTab = "upload" | "explore";
+
 export function App() {
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [selectedTemplateKey, setSelectedTemplateKey] = useState("");
   const [templateDetail, setTemplateDetail] = useState<TemplateDetail | null>(null);
-  const [imports, setImports] = useState<ImportRun[]>([]);
-  const [selectedImport, setSelectedImport] = useState<ImportDetail | null>(null);
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [selectedOrderLines, setSelectedOrderLines] = useState<OrderLine[]>([]);
+  const [activeTab, setActiveTab] = useState<AppTab>("upload");
+  const [orderQuery, setOrderQuery] = useState<OrderExplorerQuery>(() => ({
+    ...defaultOrderQuery,
+  }));
+  const [orderList, setOrderList] = useState<OrderListResponse>(() => ({
+    ...emptyOrderList,
+  }));
+  const [selectedStoredOrderId, setSelectedStoredOrderId] = useState<string | null>(null);
+  const [selectedStoredOrderLines, setSelectedStoredOrderLines] = useState<OrderLine[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [orderLinesLoading, setOrderLinesLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState("");
   const [selectedPreviewOrderId, setSelectedPreviewOrderId] = useState<string | null>(null);
   const [importSource, setImportSource] = useState<PreparedImportSource | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -81,6 +130,8 @@ export function App() {
   const [error, setError] = useState("");
   const [loadingLabel, setLoadingLabel] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const orderRequestRef = useRef(0);
+  const orderLineRequestRef = useRef(0);
 
   const selectedTemplate = useMemo(
     () => templates.find((template) => template.key === selectedTemplateKey),
@@ -102,38 +153,23 @@ export function App() {
     );
   }, [result, selectedPreviewOrderId]);
 
-  const visibleHistoryOrders = useMemo(() => {
-    if (!selectedImport) {
-      return [];
-    }
+  const selectedStoredOrder = useMemo(
+    () => orderList.orders.find((order) => order.id === selectedStoredOrderId),
+    [orderList.orders, selectedStoredOrderId],
+  );
 
-    if (selectedImport.orders.length > 0) {
-      return selectedImport.orders;
-    }
-
-    return selectedImport.import.orderPreview;
-  }, [selectedImport]);
-
-  const visibleHistoryLines = useMemo(() => {
-    if (!selectedImport) {
-      return [];
-    }
-
-    if (selectedImport.orders.length > 0) {
-      return selectedOrderLines;
-    }
-
-    if (!selectedOrderId) {
-      return selectedImport.import.linePreview;
-    }
-
-    return selectedImport.import.linePreview.filter(
-      (line) => line.sourceOrderId === selectedOrderId,
-    );
-  }, [selectedImport, selectedOrderId, selectedOrderLines]);
+  const orderPageCount = Math.max(1, Math.ceil(orderList.total / orderList.pageSize));
+  const orderResultStart =
+    orderList.total === 0 ? 0 : (orderList.page - 1) * orderList.pageSize + 1;
+  const orderResultEnd = Math.min(orderList.page * orderList.pageSize, orderList.total);
+  const orderResultSummary =
+    orderList.total === 0
+      ? "No stored orders match these filters."
+      : `Showing ${orderResultStart}-${orderResultEnd} of ${orderList.total} stored orders.`;
 
   useEffect(() => {
     void bootstrap();
+    void refreshStoredOrderExplorer(orderQuery);
   }, []);
 
   useEffect(() => {
@@ -146,18 +182,11 @@ export function App() {
 
   async function bootstrap() {
     await runSafely("Loading portal", async () => {
-      const [nextTemplates, nextImports] = await Promise.all([
-        listTemplates(),
-        listImports(),
-      ]);
+      const nextTemplates = await listTemplates();
 
       setTemplates(nextTemplates);
-      setImports(nextImports);
       if (nextTemplates.length > 0) {
         setSelectedTemplateKey(nextTemplates[0].key);
-      }
-      if (nextImports.length > 0) {
-        await openImportDetail(nextImports[0].id);
       }
     });
   }
@@ -181,15 +210,58 @@ export function App() {
     );
   }
 
-  async function refreshImports(preferredImportId?: string) {
-    const nextImports = await listImports();
-    setImports(nextImports);
+  async function refreshStoredOrderExplorer(query: OrderExplorerQuery = orderQuery) {
+    const requestId = orderRequestRef.current + 1;
+    orderRequestRef.current = requestId;
+    orderLineRequestRef.current += 1;
+    setOrdersLoading(true);
+    setOrderLinesLoading(false);
+    setOrdersError("");
 
-    const nextId =
-      preferredImportId ?? selectedImport?.import.id ?? nextImports[0]?.id;
+    try {
+      const response = await listOrders(query);
+      if (requestId !== orderRequestRef.current) {
+        return;
+      }
 
-    if (nextId) {
-      await openImportDetail(nextId);
+      setOrderList(response);
+      const firstOrderId = response.orders[0]?.id ?? null;
+      setSelectedStoredOrderId(firstOrderId);
+      setSelectedStoredOrderLines([]);
+
+      if (firstOrderId) {
+        void loadStoredOrderLines(firstOrderId);
+      }
+    } catch (caught) {
+      if (requestId === orderRequestRef.current) {
+        setOrdersError(formatError(caught));
+      }
+    } finally {
+      if (requestId === orderRequestRef.current) {
+        setOrdersLoading(false);
+      }
+    }
+  }
+
+  async function loadStoredOrderLines(orderId: string) {
+    const requestId = orderLineRequestRef.current + 1;
+    orderLineRequestRef.current = requestId;
+    setOrderLinesLoading(true);
+    setOrdersError("");
+
+    try {
+      const lines = await getOrderLines(orderId);
+      if (requestId === orderLineRequestRef.current) {
+        setSelectedStoredOrderLines(lines);
+      }
+    } catch (caught) {
+      if (requestId === orderLineRequestRef.current) {
+        setOrdersError(formatError(caught));
+      }
+    } finally {
+      if (requestId === orderLineRequestRef.current) {
+        setOrderLinesLoading(false);
+      }
     }
   }
 
@@ -295,7 +367,17 @@ export function App() {
 
       setResult(output);
       setSelectedPreviewOrderId(output.orderPreview[0]?.sourceOrderId ?? null);
-      await refreshImports(output.importRunId);
+
+      if (mode === "commit") {
+        const nextQuery = {
+          ...orderQuery,
+          page: 1,
+        };
+        setOrderQuery(nextQuery);
+        await refreshStoredOrderExplorer(nextQuery);
+        setActiveTab("explore");
+      }
+
       setMessage(
         mode === "preview"
           ? "Preview ready."
@@ -304,39 +386,35 @@ export function App() {
     });
   }
 
-  async function openImportDetail(importId: string) {
-    const detail = await getImport(importId);
-    setSelectedImport(detail);
-    const firstOrderId = detail.orders[0]?.id ?? detail.import.orderPreview[0]?.sourceOrderId ?? null;
-    setSelectedOrderId(firstOrderId);
-
-    if (detail.orders[0]?.id) {
-      const lines = await getOrderLines(detail.orders[0].id);
-      setSelectedOrderLines(lines);
-      return;
-    }
-
-    setSelectedOrderLines([]);
-  }
-
-  async function handleSelectImport(importId: string) {
-    await runSafely("Loading import details", async () => {
-      await openImportDetail(importId);
-    });
-  }
-
   async function handleSelectStoredOrder(order: OrderSummary) {
-    setSelectedOrderId(order.id ?? order.sourceOrderId);
+    const orderId = order.id ?? null;
+    setSelectedStoredOrderId(orderId);
+    setSelectedStoredOrderLines([]);
 
-    if (!order.id) {
-      setSelectedOrderLines([]);
+    if (!orderId) {
       return;
     }
 
-    await runSafely("Loading line items", async () => {
-      const lines = await getOrderLines(order.id as string);
-      setSelectedOrderLines(lines);
-    });
+    await loadStoredOrderLines(orderId);
+  }
+
+  function handleOrderQueryChange(
+    patch: Partial<OrderExplorerQuery>,
+    resetPage = true,
+  ) {
+    const nextQuery = {
+      ...orderQuery,
+      ...patch,
+      ...(resetPage && patch.page === undefined ? { page: 1 } : {}),
+    };
+    setOrderQuery(nextQuery);
+    void refreshStoredOrderExplorer(nextQuery);
+  }
+
+  function handleClearOrderFilters() {
+    const nextQuery = { ...defaultOrderQuery };
+    setOrderQuery(nextQuery);
+    void refreshStoredOrderExplorer(nextQuery);
   }
 
   async function handleSaveOverride() {
@@ -384,10 +462,6 @@ export function App() {
     );
   }
 
-  const historyLineLabel = selectedImport?.orders.length
-    ? "Stored line items"
-    : "Preview line items";
-
   return (
     <main className="app-shell">
       <header className="masthead">
@@ -400,276 +474,466 @@ export function App() {
         </div>
       </header>
 
-      <section className="template-band">
-        <div className="section-title">
-          <div>
-            <p className="eyebrow">Templates</p>
-            <h2>Choose a source lane</h2>
-          </div>
-          <button className="ghost" onClick={() => setAdvancedOpen((open) => !open)}>
-            {advancedOpen ? "Hide advanced" : "Advanced template editor"}
-          </button>
-        </div>
-        <div className="template-grid">
-          {templates.map((template) => (
-            <button
-              key={template.key}
-              className={`template-card ${template.key === selectedTemplateKey ? "active" : ""}`}
-              onClick={() => setSelectedTemplateKey(template.key)}
-            >
-              <strong>{template.label}</strong>
-              <span>{template.description}</span>
-              <small>
-                {template.acceptedFileKinds.join(", ")}
-                {template.hasOverride ? " • override active" : ""}
-              </small>
-            </button>
-          ))}
-        </div>
-      </section>
+      <nav className="tab-bar" role="tablist" aria-label="Portal workspace">
+        <button
+          id="upload-tab"
+          role="tab"
+          aria-selected={activeTab === "upload"}
+          aria-controls="upload-panel"
+          className={`tab-button ${activeTab === "upload" ? "active" : ""}`}
+          onClick={() => setActiveTab("upload")}
+        >
+          Upload
+        </button>
+        <button
+          id="explore-tab"
+          role="tab"
+          aria-selected={activeTab === "explore"}
+          aria-controls="explore-panel"
+          className={`tab-button ${activeTab === "explore" ? "active" : ""}`}
+          onClick={() => setActiveTab("explore")}
+        >
+          Stored orders
+        </button>
+      </nav>
 
-      {advancedOpen && templateDetail ? (
-        <section className="advanced-band">
-          <div className="section-title">
-            <div>
-              <p className="eyebrow">Advanced</p>
-              <h2>{templateDetail.template.label}</h2>
+      {activeTab === "upload" ? (
+        <div id="upload-panel" role="tabpanel" aria-labelledby="upload-tab">
+          <section className="template-band">
+            <div className="section-title">
+              <div>
+                <p className="eyebrow">Templates</p>
+                <h2>Choose a source lane</h2>
+              </div>
+              <button className="ghost" onClick={() => setAdvancedOpen((open) => !open)}>
+                {advancedOpen ? "Hide advanced" : "Advanced template editor"}
+              </button>
             </div>
-            <div className="button-row">
-              <label className="compact-label">
-                Format
-                <select
-                  value={editorFormat}
-                  onChange={(event) =>
-                    handleEditorFormatChange(event.target.value as ConfigFormat)
-                  }
+            <div className="template-grid">
+              {templates.map((template) => (
+                <button
+                  key={template.key}
+                  className={`template-card ${template.key === selectedTemplateKey ? "active" : ""}`}
+                  onClick={() => setSelectedTemplateKey(template.key)}
                 >
-                  <option value="yaml">yaml</option>
-                  <option value="json">json</option>
-                </select>
-              </label>
-              <button className="ghost" onClick={handleRestoreTemplate} disabled={isBusy}>
-                Restore built-in
-              </button>
-              <button className="primary" onClick={handleSaveOverride} disabled={isBusy}>
-                Save override
-              </button>
+                  <strong>{template.label}</strong>
+                  <span>{template.description}</span>
+                  <small>
+                    {template.acceptedFileKinds.join(", ")}
+                    {template.hasOverride ? " • override active" : ""}
+                  </small>
+                </button>
+              ))}
             </div>
-          </div>
-          <textarea
-            className="editor"
-            value={editorContent}
-            onChange={(event) => setEditorContent(event.target.value)}
-            spellCheck={false}
-          />
-        </section>
-      ) : null}
+          </section>
 
-      <section className="workspace">
-        <div className="import-panel">
+          {advancedOpen && templateDetail ? (
+            <section className="advanced-band">
+              <div className="section-title">
+                <div>
+                  <p className="eyebrow">Advanced</p>
+                  <h2>{templateDetail.template.label}</h2>
+                </div>
+                <div className="button-row">
+                  <label className="compact-label">
+                    Format
+                    <select
+                      value={editorFormat}
+                      onChange={(event) =>
+                        handleEditorFormatChange(event.target.value as ConfigFormat)
+                      }
+                    >
+                      <option value="yaml">yaml</option>
+                      <option value="json">json</option>
+                    </select>
+                  </label>
+                  <button className="ghost" onClick={handleRestoreTemplate} disabled={isBusy}>
+                    Restore built-in
+                  </button>
+                  <button className="primary" onClick={handleSaveOverride} disabled={isBusy}>
+                    Save override
+                  </button>
+                </div>
+              </div>
+              <textarea
+                className="editor"
+                value={editorContent}
+                onChange={(event) => setEditorContent(event.target.value)}
+                spellCheck={false}
+              />
+            </section>
+          ) : null}
+
+          <section className="workspace">
+            <div className="import-panel">
+              <div className="section-title">
+                <div>
+                  <p className="eyebrow">Import</p>
+                  <h2>Source file</h2>
+                </div>
+                <button
+                  className="ghost"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isBusy}
+                >
+                  Choose file
+                </button>
+              </div>
+
+              <div
+                className="drop-zone"
+                role="button"
+                tabIndex={0}
+                onClick={() => fileInputRef.current?.click()}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    fileInputRef.current?.click();
+                  }
+                }}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  void handleFileSelection(event.dataTransfer.files);
+                }}
+              >
+                <input
+                  ref={fileInputRef}
+                  className="sr-only"
+                  type="file"
+                  accept=".csv,.tsv,.json,.xls,.xlsx"
+                  onChange={(event) => void handleFileSelection(event.target.files)}
+                />
+                <strong>
+                  {importSource ? importSource.fileName : "Drop a marketplace export"}
+                </strong>
+                <span>
+                  {importSource
+                    ? `${importSource.recordCount} source row(s) ready`
+                    : selectedTemplate
+                      ? `${selectedTemplate.acceptedFileKinds.join(", ")} supported`
+                      : "Choose a template first"}
+                </span>
+              </div>
+
+              <div className="button-row">
+                <button onClick={() => loadSample("amazon")}>Amazon sample</button>
+                <button onClick={() => loadSample("shopify")}>Shopify sample</button>
+                <button onClick={() => loadSample("generic-csv")}>Generic CSV</button>
+                <button onClick={() => loadSample("generic-json")}>Generic JSON</button>
+                <button onClick={() => loadSample("generic-excel")}>Generic Excel</button>
+                <button className="ghost" onClick={() => downloadSampleExcel()}>
+                  Download Excel
+                </button>
+              </div>
+
+              <div className="action-row">
+                <button
+                  className="primary"
+                  onClick={() => void handleImport("preview")}
+                  disabled={isBusy || !importSource || !selectedTemplateKey}
+                >
+                  Preview import
+                </button>
+                <button
+                  className="success"
+                  onClick={() => void handleImport("commit")}
+                  disabled={isBusy || !importSource || !selectedTemplateKey}
+                >
+                  Commit valid rows
+                </button>
+              </div>
+
+              <div className="preview-block">
+                <h3>Source preview</h3>
+                <DataTable
+                  rows={importSource?.previewRows ?? []}
+                  emptyText="Load a file to preview the first rows."
+                />
+              </div>
+            </div>
+
+            <div className="result-panel">
+              <div className="section-title">
+                <div>
+                  <p className="eyebrow">Current run</p>
+                  <h2>Validation and rollup</h2>
+                </div>
+                {result ? <StatusPill result={result} /> : null}
+              </div>
+
+              {result ? (
+                <>
+                  <div className="metric-grid">
+                    <Metric label="Rows" value={result.totalRecords} />
+                    <Metric label="Valid" value={result.validRecords} tone="good" />
+                    <Metric label="Invalid" value={result.invalidRecords} tone="bad" />
+                    <Metric label="Orders" value={result.orderPreview.length} />
+                    <Metric label="Lines" value={result.linePreview.length} />
+                    <Metric label="Stored" value={result.storedOrderCount} />
+                  </div>
+
+                  <h3>Row errors</h3>
+                  <ErrorTable errors={result.errors} />
+
+                  <h3>Order preview</h3>
+                  <DataTable
+                    rows={result.orderPreview}
+                    columns={orderColumns}
+                    emptyText="No clean orders in this preview."
+                    getRowKey={(row) => String(row.sourceOrderId)}
+                    activeRowKey={selectedPreviewOrderId ?? undefined}
+                    onRowClick={(row) =>
+                      setSelectedPreviewOrderId(String(row.sourceOrderId))
+                    }
+                  />
+
+                  <h3>Line-item drill-down</h3>
+                  <DataTable
+                    rows={previewLines}
+                    columns={lineColumns}
+                    emptyText="Choose an order preview to inspect its lines."
+                  />
+                </>
+              ) : (
+                <EmptyState />
+              )}
+            </div>
+          </section>
+        </div>
+      ) : (
+        <section
+          id="explore-panel"
+          className="explorer-band"
+          role="tabpanel"
+          aria-labelledby="explore-tab"
+        >
           <div className="section-title">
             <div>
-              <p className="eyebrow">Import</p>
-              <h2>Source file</h2>
+              <p className="eyebrow">Stored orders</p>
+              <h2>Explore MongoDB orders</h2>
             </div>
             <button
               className="ghost"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isBusy}
+              onClick={() => void refreshStoredOrderExplorer(orderQuery)}
+              disabled={ordersLoading}
             >
-              Choose file
+              Refresh
             </button>
           </div>
 
-          <div
-            className="drop-zone"
-            role="button"
-            tabIndex={0}
-            onClick={() => fileInputRef.current?.click()}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                fileInputRef.current?.click();
-              }
-            }}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault();
-              void handleFileSelection(event.dataTransfer.files);
-            }}
-          >
-            <input
-              ref={fileInputRef}
-              className="sr-only"
-              type="file"
-              accept=".csv,.tsv,.json,.xls,.xlsx"
-              onChange={(event) => void handleFileSelection(event.target.files)}
-            />
-            <strong>
-              {importSource ? importSource.fileName : "Drop a marketplace export"}
-            </strong>
-            <span>
-              {importSource
-                ? `${importSource.recordCount} source row(s) ready`
-                : selectedTemplate
-                  ? `${selectedTemplate.acceptedFileKinds.join(", ")} supported`
-                  : "Choose a template first"}
-            </span>
-          </div>
-
-          <div className="button-row">
-            <button onClick={() => loadSample("amazon")}>Amazon sample</button>
-            <button onClick={() => loadSample("shopify")}>Shopify sample</button>
-            <button onClick={() => loadSample("generic-csv")}>Generic CSV</button>
-            <button onClick={() => loadSample("generic-json")}>Generic JSON</button>
-            <button onClick={() => loadSample("generic-excel")}>Generic Excel</button>
-            <button className="ghost" onClick={() => downloadSampleExcel()}>
-              Download Excel
-            </button>
-          </div>
-
-          <div className="action-row">
-            <button
-              className="primary"
-              onClick={() => void handleImport("preview")}
-              disabled={isBusy || !importSource || !selectedTemplateKey}
-            >
-              Preview import
-            </button>
-            <button
-              className="success"
-              onClick={() => void handleImport("commit")}
-              disabled={isBusy || !importSource || !selectedTemplateKey}
-            >
-              Commit valid rows
-            </button>
-          </div>
-
-          <div className="preview-block">
-            <h3>Source preview</h3>
-            <DataTable
-              rows={importSource?.previewRows ?? []}
-              emptyText="Load a file to preview the first rows."
-            />
-          </div>
-        </div>
-
-        <div className="result-panel">
-          <div className="section-title">
-            <div>
-              <p className="eyebrow">Current run</p>
-              <h2>Validation and rollup</h2>
-            </div>
-            {result ? <StatusPill result={result} /> : null}
-          </div>
-
-          {result ? (
-            <>
-              <div className="metric-grid">
-                <Metric label="Rows" value={result.totalRecords} />
-                <Metric label="Valid" value={result.validRecords} tone="good" />
-                <Metric label="Invalid" value={result.invalidRecords} tone="bad" />
-                <Metric label="Orders" value={result.orderPreview.length} />
-                <Metric label="Lines" value={result.linePreview.length} />
-                <Metric label="Stored" value={result.storedOrderCount} />
-              </div>
-
-              <h3>Row errors</h3>
-              <ErrorTable errors={result.errors} />
-
-              <h3>Order preview</h3>
-              <DataTable
-                rows={result.orderPreview}
-                columns={orderColumns}
-                emptyText="No clean orders in this preview."
-                getRowKey={(row) => String(row.sourceOrderId)}
-                activeRowKey={selectedPreviewOrderId ?? undefined}
-                onRowClick={(row) =>
-                  setSelectedPreviewOrderId(String(row.sourceOrderId))
+          <div className="explorer-controls">
+            <label className="field-label wide">
+              Search
+              <input
+                type="search"
+                value={orderQuery.q ?? ""}
+                onChange={(event) =>
+                  handleOrderQueryChange({ q: event.target.value })
+                }
+                placeholder="Order, customer, city, country"
+              />
+            </label>
+            <label className="field-label">
+              Channel
+              <input
+                value={orderQuery.salesChannel ?? ""}
+                onChange={(event) =>
+                  handleOrderQueryChange({ salesChannel: event.target.value })
+                }
+                placeholder="Amazon.de"
+              />
+            </label>
+            <label className="field-label">
+              Order status
+              <input
+                value={orderQuery.orderStatus ?? ""}
+                onChange={(event) =>
+                  handleOrderQueryChange({ orderStatus: event.target.value })
+                }
+                placeholder="paid"
+              />
+            </label>
+            <label className="field-label">
+              Payment status
+              <input
+                value={orderQuery.paymentStatus ?? ""}
+                onChange={(event) =>
+                  handleOrderQueryChange({ paymentStatus: event.target.value })
+                }
+                placeholder="authorized"
+              />
+            </label>
+            <label className="field-label">
+              Fulfillment status
+              <input
+                value={orderQuery.fulfillmentStatus ?? ""}
+                onChange={(event) =>
+                  handleOrderQueryChange({ fulfillmentStatus: event.target.value })
+                }
+                placeholder="fulfilled"
+              />
+            </label>
+            <label className="field-label">
+              Date from
+              <input
+                type="date"
+                value={orderQuery.dateFrom ?? ""}
+                onChange={(event) =>
+                  handleOrderQueryChange({ dateFrom: event.target.value })
                 }
               />
-
-              <h3>Line-item drill-down</h3>
-              <DataTable
-                rows={previewLines}
-                columns={lineColumns}
-                emptyText="Choose an order preview to inspect its lines."
+            </label>
+            <label className="field-label">
+              Date to
+              <input
+                type="date"
+                value={orderQuery.dateTo ?? ""}
+                onChange={(event) =>
+                  handleOrderQueryChange({ dateTo: event.target.value })
+                }
               />
-            </>
-          ) : (
-            <EmptyState />
-          )}
-        </div>
-      </section>
-
-      <section className="history-band">
-        <div className="section-title">
-          <div>
-            <p className="eyebrow">Recent imports</p>
-            <h2>History and stored orders</h2>
+            </label>
+            <label className="field-label">
+              Min total
+              <input
+                type="number"
+                step="0.01"
+                value={String(orderQuery.minTotal ?? "")}
+                onChange={(event) =>
+                  handleOrderQueryChange({ minTotal: event.target.value })
+                }
+                placeholder="0.00"
+              />
+            </label>
+            <label className="field-label">
+              Max total
+              <input
+                type="number"
+                step="0.01"
+                value={String(orderQuery.maxTotal ?? "")}
+                onChange={(event) =>
+                  handleOrderQueryChange({ maxTotal: event.target.value })
+                }
+                placeholder="250.00"
+              />
+            </label>
+            <label className="field-label">
+              Sort
+              <select
+                value={orderQuery.sort || defaultOrderQuery.sort}
+                onChange={(event) =>
+                  handleOrderQueryChange({ sort: event.target.value as OrderListSort })
+                }
+              >
+                {orderSortOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field-label">
+              Page size
+              <select
+                value={String(orderQuery.pageSize ?? defaultOrderQuery.pageSize)}
+                onChange={(event) =>
+                  handleOrderQueryChange({ pageSize: event.target.value })
+                }
+              >
+                {pageSizeOptions.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button className="ghost filter-reset" onClick={handleClearOrderFilters}>
+              Clear filters
+            </button>
           </div>
-        </div>
 
-        <div className="history-grid">
-          <div className="history-list">
-            {imports.length === 0 ? (
-              <p className="muted">No imports yet.</p>
-            ) : (
-              imports.map((item) => (
-                <button
-                  key={item.id}
-                  className={`history-row ${selectedImport?.import.id === item.id ? "active" : ""}`}
-                  onClick={() => void handleSelectImport(item.id)}
-                >
-                  <strong>{item.templateKey}</strong>
-                  <span>{item.mode}</span>
-                  <span>
-                    {item.validRecords}/{item.totalRecords} valid
-                  </span>
-                  <small>{formatDate(item.createdAt)}</small>
-                </button>
-              ))
-            )}
+          {ordersError ? (
+            <p className="inline-error" role="alert">
+              {ordersError}
+            </p>
+          ) : null}
+
+          <div className="explorer-summary">
+            <p className="muted">
+              {ordersLoading ? "Loading stored orders..." : orderResultSummary}
+            </p>
+            <div className="pagination-row">
+              <button
+                onClick={() =>
+                  handleOrderQueryChange(
+                    { page: Math.max(1, orderList.page - 1) },
+                    false,
+                  )
+                }
+                disabled={ordersLoading || orderList.page <= 1}
+              >
+                Previous
+              </button>
+              <span>
+                Page {orderList.page} of {orderPageCount}
+              </span>
+              <button
+                onClick={() =>
+                  handleOrderQueryChange(
+                    { page: Math.min(orderPageCount, orderList.page + 1) },
+                    false,
+                  )
+                }
+                disabled={ordersLoading || orderList.page >= orderPageCount}
+              >
+                Next
+              </button>
+            </div>
           </div>
 
-          <div className="history-detail">
-            {selectedImport ? (
-              <>
-                <div className="metric-grid compact">
-                  <Metric label="Rows" value={selectedImport.import.totalRecords} />
-                  <Metric label="Valid" value={selectedImport.import.validRecords} />
-                  <Metric label="Invalid" value={selectedImport.import.invalidRecords} />
-                  <Metric label="Stored orders" value={selectedImport.import.storedOrderCount} />
-                  <Metric label="Stored lines" value={selectedImport.import.storedLineCount} />
-                </div>
+          <div className="explorer-grid">
+            <div className="explorer-table">
+              <h3>Orders</h3>
+              <DataTable
+                rows={orderList.orders}
+                columns={storedOrderColumns}
+                emptyText={
+                  ordersLoading
+                    ? "Loading stored orders..."
+                    : "No stored orders match these filters."
+                }
+                getRowKey={(row) =>
+                  String((row as OrderSummary).id ?? row.sourceOrderId)
+                }
+                activeRowKey={selectedStoredOrderId ?? undefined}
+                onRowClick={(row) => void handleSelectStoredOrder(row as OrderSummary)}
+              />
+            </div>
 
-                <h3>Orders</h3>
-                <DataTable
-                  rows={visibleHistoryOrders}
-                  columns={orderColumns}
-                  emptyText="No orders for this import yet."
-                  getRowKey={(row) =>
-                    String((row as OrderSummary).id ?? row.sourceOrderId)
-                  }
-                  activeRowKey={selectedOrderId ?? undefined}
-                  onRowClick={(row) => void handleSelectStoredOrder(row as OrderSummary)}
-                />
-
-                <h3>{historyLineLabel}</h3>
-                <DataTable
-                  rows={visibleHistoryLines}
-                  columns={lineColumns}
-                  emptyText="Choose an order to inspect its lines."
-                />
-
-                <h3>Validation errors</h3>
-                <ErrorTable errors={selectedImport.import.errors} />
-              </>
-            ) : (
-              <p className="muted">Run an import to build up history.</p>
-            )}
+            <div className="line-detail">
+              <h3>
+                {selectedStoredOrder
+                  ? `Line items for ${
+                      selectedStoredOrder.sourceOrderName ??
+                      selectedStoredOrder.sourceOrderId
+                    }`
+                  : "Line items"}
+              </h3>
+              <DataTable
+                rows={selectedStoredOrderLines}
+                columns={lineColumns}
+                emptyText={
+                  orderLinesLoading
+                    ? "Loading line items..."
+                    : selectedStoredOrderId
+                      ? "No line items found for this order."
+                      : "Choose a stored order to inspect its lines."
+                }
+              />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </main>
   );
 }

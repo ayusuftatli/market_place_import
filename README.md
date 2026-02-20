@@ -11,7 +11,7 @@ Single-workspace import portal for client-facing order review. The app focuses o
 - Normalize line-based source rows into:
   - `OrderSummary`
   - `OrderLine`
-- Keep recent import history, row-level validation errors, and stored line-item detail in one place.
+- Store committed orders in MongoDB and explore them with filters, sorting, pagination, and line-item drill-down.
 - Hide multi-client and environment setup from the main UI.
 - Offer a secondary advanced drawer for raw YAML/JSON template overrides.
 
@@ -57,34 +57,52 @@ Or, for browser-parsed JSON / Excel:
 
 ## Setup
 
-Use Node.js 18 or newer.
+Use Node.js 18 or newer and a reachable MongoDB database.
 
 ```bash
 npm install
-npm run build
-npm test
 ```
 
-### Connect to MongoDB Atlas
+### Connect to MongoDB
 
-This repo requires MongoDB for runtime data. The server reads [`MONGODB_URI`](src/shared/database.ts:3) from your environment and fails fast if it is missing.
+This repo always uses MongoDB for runtime data. The server reads [`MONGODB_URI`](src/shared/database.ts:3) from your environment and fails fast if it is missing; there is no non-persistent data-store mode.
+
+For MongoDB Atlas:
 
 1. In Atlas, open your cluster and copy the **Drivers** connection string for Node.js.
 2. Replace `<username>`, `<password>`, and, if needed, the default database name in the URI.
 3. Make sure your Atlas database user has read/write access.
 4. Make sure your current IP address is allowed in Atlas **Network Access**.
-5. Create a local [`.env`](.env) file in the project root:
+5. Create a local [`.env`](.env) file in the project root.
+
+For a local MongoDB instance, use the URI from [`.env.example`](.env.example).
 
 ```bash
 cp .env.example .env
 ```
-Start the API against Atlas:
+
+Make sure MongoDB is reachable, then verify the project:
+
+```bash
+npm run build
+npm test
+```
+
+Start the API:
 
 ```bash
 npm run dev:api
 ```
 
-For the split workflow, run the UI separately:
+For a local full-stack workflow, build the UI and serve it from the API:
+
+```bash
+npm run dev
+```
+
+The API listens on `http://localhost:3000` and the built UI is served directly from `http://localhost:3000/`.
+
+For a split local workflow, run the API and Vite UI separately:
 
 ```bash
 npm run dev:api
@@ -97,27 +115,12 @@ Expected behavior:
 - imported orders persist in MongoDB
 - restarting the API does not remove previously imported records
 
-Common Atlas issues:
+Common MongoDB connection issues:
 
 - `MONGODB_URI is required...`: [`.env`](.env) is missing or not loaded
 - authentication failed: username or password in the URI is wrong
-- IP/network timeout: your current machine is not allowed in Atlas **Network Access**
+- IP/network timeout: your current machine is not allowed in Atlas **Network Access**, or the local MongoDB server is not running
 - DNS or SRV error: use the full Atlas `mongodb+srv://` string copied from Atlas Drivers
-
-For a local full-stack workflow:
-
-```bash
-npm run dev
-```
-
-The API listens on `http://localhost:3000` and the built UI is served directly from `http://localhost:3000/`.
-
-For a split local workflow:
-
-```bash
-npm run dev:api
-npm run dev:ui
-```
 
 ## Demo Assets
 
@@ -162,7 +165,7 @@ The React UI is built as a client-facing portal:
 - choose one template
 - drop in a file
 - preview or commit
-- inspect order summaries
-- click through to line items
-- review recent imports
+- explore stored MongoDB orders with search, filters, sorting, and pagination
+- select a stored order and inspect its line items
+- commit new valid rows and refresh the stored order explorer
 - open the advanced drawer only when raw template editing is actually needed

@@ -39,7 +39,7 @@ describe("UI static serving", () => {
       expect(uiRootResponse.status).toBe(200);
       expect(uiRootResponse.text).toContain("ui ready");
 
-      const uiResponse = await requestApp(app, "GET", "/history");
+      const uiResponse = await requestApp(app, "GET", "/stored-orders");
       expect(uiResponse.status).toBe(200);
       expect(uiResponse.text).toContain("ui ready");
 

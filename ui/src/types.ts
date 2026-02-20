@@ -92,6 +92,37 @@ export interface OrderLine extends Record<string, unknown> {
   createdAt?: string;
 }
 
+export type OrderListSort =
+  | "createdAt:desc"
+  | "createdAt:asc"
+  | "orderDate:desc"
+  | "orderDate:asc"
+  | "totalAmount:desc"
+  | "totalAmount:asc";
+
+export interface OrderExplorerQuery {
+  q?: string;
+  importRunId?: string;
+  salesChannel?: string;
+  orderStatus?: string;
+  paymentStatus?: string;
+  fulfillmentStatus?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  minTotal?: number | string;
+  maxTotal?: number | string;
+  sort?: OrderListSort | "";
+  page?: number | string;
+  pageSize?: number | string;
+}
+
+export interface OrderListResponse {
+  orders: OrderSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface ImportRun {
   id: string;
   templateKey: string;
