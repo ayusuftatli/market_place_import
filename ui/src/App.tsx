@@ -123,6 +123,7 @@ export function App() {
   const [selectedStoredOrderLines, setSelectedStoredOrderLines] = useState<
     OrderLine[]
   >([]);
+  const [lineItemsDialogOpen, setLineItemsDialogOpen] = useState(false);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderLinesLoading, setOrderLinesLoading] = useState(false);
   const [ordersError, setOrdersError] = useState("");
@@ -196,6 +197,21 @@ export function App() {
     void loadTemplateDetail(selectedTemplateKey);
   }, [selectedTemplateKey]);
 
+  useEffect(() => {
+    if (!lineItemsDialogOpen) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        handleCloseLineItemsDialog();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lineItemsDialogOpen]);
+
   async function bootstrap() {
     await runSafely("Loading portal", async () => {
       const nextTemplates = await listTemplates();
@@ -234,6 +250,7 @@ export function App() {
     orderLineRequestRef.current += 1;
     setOrdersLoading(true);
     setOrderLinesLoading(false);
+    setLineItemsDialogOpen(false);
     setOrdersError("");
 
     try {
@@ -243,13 +260,8 @@ export function App() {
       }
 
       setOrderList(response);
-      const firstOrderId = response.orders[0]?.id ?? null;
-      setSelectedStoredOrderId(firstOrderId);
+      setSelectedStoredOrderId(null);
       setSelectedStoredOrderLines([]);
-
-      if (firstOrderId) {
-        void loadStoredOrderLines(firstOrderId);
-      }
     } catch (caught) {
       if (requestId === orderRequestRef.current) {
         setOrdersError(formatError(caught));
@@ -462,12 +474,19 @@ export function App() {
     const orderId = order.id ?? null;
     setSelectedStoredOrderId(orderId);
     setSelectedStoredOrderLines([]);
+    setLineItemsDialogOpen(Boolean(orderId));
 
     if (!orderId) {
       return;
     }
 
     await loadStoredOrderLines(orderId);
+  }
+
+  function handleCloseLineItemsDialog() {
+    orderLineRequestRef.current += 1;
+    setOrderLinesLoading(false);
+    setLineItemsDialogOpen(false);
   }
 
   function handleOrderQueryChange(
@@ -1022,29 +1041,55 @@ export function App() {
                 }
               />
             </div>
-
-            <div className="line-detail">
-              <h3>
-                {selectedStoredOrder
-                  ? `Line items for ${
-                      selectedStoredOrder.sourceOrderName ??
-                      selectedStoredOrder.sourceOrderId
-                    }`
-                  : "Line items"}
-              </h3>
-              <DataTable
-                rows={selectedStoredOrderLines}
-                columns={lineColumns}
-                emptyText={
-                  orderLinesLoading
-                    ? "Loading line items..."
-                    : selectedStoredOrderId
-                      ? "No line items found for this order."
-                      : "Choose a stored order to inspect its lines."
-                }
-              />
-            </div>
           </div>
+
+          {lineItemsDialogOpen ? (
+            <div
+              className="dialog-backdrop"
+              role="presentation"
+              onClick={handleCloseLineItemsDialog}
+            >
+              <div
+                className="line-items-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="line-items-dialog-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="dialog-header">
+                  <div>
+                    <p className="eyebrow">Stored order</p>
+                    <h3 id="line-items-dialog-title">
+                      {selectedStoredOrder
+                        ? `Line items for ${
+                            selectedStoredOrder.sourceOrderName ??
+                            selectedStoredOrder.sourceOrderId
+                          }`
+                        : "Line items"}
+                    </h3>
+                  </div>
+                  <button
+                    className="ghost"
+                    type="button"
+                    onClick={handleCloseLineItemsDialog}
+                  >
+                    Close
+                  </button>
+                </div>
+                <DataTable
+                  rows={selectedStoredOrderLines}
+                  columns={lineColumns}
+                  emptyText={
+                    orderLinesLoading
+                      ? "Loading line items..."
+                      : selectedStoredOrderId
+                        ? "No line items found for this order."
+                        : "Choose a stored order to inspect its lines."
+                  }
+                />
+              </div>
+            </div>
+          ) : null}
         </section>
       )}
     </main>

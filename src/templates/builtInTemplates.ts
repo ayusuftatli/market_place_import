@@ -9,7 +9,6 @@ const builtInTemplates = {
   amazon: {
     key: "amazon",
     label: "Amazon Orders Report",
-    description: "Flat-file marketplace orders with realistic Amazon columns.",
     templateVersion: 1,
     acceptedFileKinds: ["tsv", "csv", "excel"],
     sampleFileName: "amazon-orders-report.tsv",

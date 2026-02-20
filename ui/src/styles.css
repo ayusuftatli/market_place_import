@@ -472,14 +472,52 @@ th {
 
 .explorer-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
 
-.explorer-table,
-.line-detail {
+.explorer-table {
   min-width: 0;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(42, 47, 48, 0.48);
+}
+
+.line-items-dialog {
+  width: min(980px, 100%);
+  max-height: min(82vh, 760px);
+  overflow: hidden;
+  border: 1px solid #d5c6b4;
+  border-radius: 8px;
+  padding: 18px;
+  background: #fffdf8;
+  box-shadow: 0 20px 60px rgba(42, 47, 48, 0.24);
+}
+
+.dialog-header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.dialog-header h3,
+.dialog-header p {
+  margin-bottom: 0;
+}
+
+.line-items-dialog .table-wrap {
+  max-height: min(58vh, 560px);
+  overflow: auto;
 }
 
 .muted {
@@ -549,6 +587,21 @@ th {
 
   .explorer-summary {
     align-items: flex-start;
+  }
+
+  .dialog-backdrop {
+    align-items: end;
+    padding: 12px;
+  }
+
+  .line-items-dialog {
+    max-height: 88vh;
+    padding: 16px;
+  }
+
+  .dialog-header {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .metric-grid,
