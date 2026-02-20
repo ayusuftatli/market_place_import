@@ -5,9 +5,7 @@ import { connectToDatabase, disconnectFromDatabase } from "./shared/database";
 async function main(): Promise<void> {
   const port = Number(process.env.PORT ?? 3000);
 
-  if (process.env.DATA_STORE !== "memory") {
-    await connectToDatabase();
-  }
+  await connectToDatabase();
 
   const server = app.listen(port, () => {
     console.log(`Marketplace import portal listening on http://localhost:${port}`);

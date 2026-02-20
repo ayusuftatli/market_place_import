@@ -1,4 +1,3 @@
-import { Types } from "mongoose";
 import { ImportRunModel } from "../imports/importRunModel";
 import { OrderLineModel } from "../orders/orderLineModel";
 import { OrderSummaryModel } from "../orders/orderSummaryModel";
@@ -9,8 +8,11 @@ import type {
   CreateOrderSummaryInput,
   CreateTemplateOverrideInput,
   ImportRunEntity,
+  OrderListSort,
   OrderLineEntity,
   OrderSummaryEntity,
+  OrderSummaryListQuery,
+  OrderSummaryListResult,
   TemplateOverrideEntity,
 } from "./types";
 
@@ -30,12 +32,16 @@ export interface ImportRunRepository {
 export interface OrderSummaryRepository {
   createMany(input: CreateOrderSummaryInput[]): Promise<OrderSummaryEntity[]>;
   list(filter?: { importRunId?: string }): Promise<OrderSummaryEntity[]>;
+  listPage(query?: OrderSummaryListQuery): Promise<OrderSummaryListResult>;
   findById(id: string): Promise<OrderSummaryEntity | null>;
 }
 
 export interface OrderLineRepository {
   createMany(input: CreateOrderLineInput[]): Promise<OrderLineEntity[]>;
-  list(filter?: { importRunId?: string; orderId?: string }): Promise<OrderLineEntity[]>;
+  list(filter?: {
+    importRunId?: string;
+    orderId?: string;
+  }): Promise<OrderLineEntity[]>;
   count(filter?: { importRunId?: string; orderId?: string }): Promise<number>;
 }
 
@@ -44,151 +50,16 @@ export interface DataStore {
   importRuns: ImportRunRepository;
   orders: OrderSummaryRepository;
   orderLines: OrderLineRepository;
-  reset?(): Promise<void>;
 }
 
-function newId(): string {
-  return new Types.ObjectId().toString();
-}
-
-function byCreatedDesc<T extends { createdAt: Date }>(left: T, right: T): number {
-  return right.createdAt.getTime() - left.createdAt.getTime();
-}
-
-function clone<T>(value: T): T {
-  return structuredClone(value);
-}
-
-function toEntity<T extends { _id: unknown }>(doc: T): Omit<T, "_id"> & { id: string } {
+function toEntity<T extends { _id: unknown }>(
+  doc: T,
+): Omit<T, "_id"> & { id: string } {
   const { _id, ...rest } = doc;
   return {
     id: String(_id),
     ...rest,
   } as Omit<T, "_id"> & { id: string };
-}
-
-export function createMemoryDataStore(): DataStore {
-  let templateOverrides: TemplateOverrideEntity[] = [];
-  let importRuns: ImportRunEntity[] = [];
-  let orders: OrderSummaryEntity[] = [];
-  let orderLines: OrderLineEntity[] = [];
-
-  return {
-    templateOverrides: {
-      async list() {
-        return new Map(
-          templateOverrides.map((override) => [override.key, clone(override)]),
-        );
-      },
-      async findByKey(key) {
-        return clone(
-          templateOverrides.find((override) => override.key === key) ?? null,
-        );
-      },
-      async upsert(input) {
-        const existing = templateOverrides.find((override) => override.key === input.key);
-        const now = new Date();
-
-        if (existing) {
-          existing.format = input.format;
-          existing.content = input.content;
-          existing.template = clone(input.template);
-          existing.templateVersion = input.templateVersion;
-          existing.updatedAt = now;
-          return clone(existing);
-        }
-
-        const created: TemplateOverrideEntity = {
-          id: newId(),
-          key: input.key,
-          format: input.format,
-          content: input.content,
-          template: clone(input.template),
-          templateVersion: input.templateVersion,
-          createdAt: now,
-          updatedAt: now,
-        };
-        templateOverrides.push(created);
-        return clone(created);
-      },
-      async deleteByKey(key) {
-        templateOverrides = templateOverrides.filter((override) => override.key !== key);
-      },
-    },
-    importRuns: {
-      async create(input) {
-        const run: ImportRunEntity = {
-          id: newId(),
-          createdAt: new Date(),
-          ...clone(input),
-        };
-        importRuns.push(run);
-        return clone(run);
-      },
-      async list() {
-        return clone([...importRuns].sort(byCreatedDesc));
-      },
-      async findById(id) {
-        return clone(importRuns.find((run) => run.id === id) ?? null);
-      },
-    },
-    orders: {
-      async createMany(input) {
-        const created = input.map<OrderSummaryEntity>((order) => ({
-          id: newId(),
-          createdAt: new Date(),
-          ...clone(order),
-        }));
-        orders.push(...created);
-        return clone(created);
-      },
-      async list(filter = {}) {
-        return clone(
-          orders
-            .filter((order) => !filter.importRunId || order.importRunId === filter.importRunId)
-            .sort(byCreatedDesc),
-        );
-      },
-      async findById(id) {
-        return clone(orders.find((order) => order.id === id) ?? null);
-      },
-    },
-    orderLines: {
-      async createMany(input) {
-        const created = input.map<OrderLineEntity>((line) => ({
-          id: newId(),
-          createdAt: new Date(),
-          ...clone(line),
-        }));
-        orderLines.push(...created);
-        return clone(created);
-      },
-      async list(filter = {}) {
-        return clone(
-          orderLines
-            .filter(
-              (line) =>
-                (!filter.importRunId || line.importRunId === filter.importRunId) &&
-                (!filter.orderId || line.orderId === filter.orderId),
-            )
-            .sort((left, right) => left.rowNumber - right.rowNumber),
-        );
-      },
-      async count(filter = {}) {
-        return orderLines.filter(
-          (line) =>
-            (!filter.importRunId || line.importRunId === filter.importRunId) &&
-            (!filter.orderId || line.orderId === filter.orderId),
-        ).length;
-      },
-    },
-    async reset() {
-      templateOverrides = [];
-      importRuns = [];
-      orders = [];
-      orderLines = [];
-    },
-  };
 }
 
 export function createMongoDataStore(): DataStore {
@@ -252,11 +123,36 @@ export function createMongoDataStore(): DataStore {
         }
 
         const docs = await OrderSummaryModel.insertMany(input);
-        return docs.map((doc) => toEntity(doc.toObject()) as OrderSummaryEntity);
+        return docs.map(
+          (doc) => toEntity(doc.toObject()) as OrderSummaryEntity,
+        );
       },
       async list(filter = {}) {
-        const docs = await OrderSummaryModel.find(filter).sort({ createdAt: -1 }).lean();
+        const docs = await OrderSummaryModel.find(filter)
+          .sort({ createdAt: -1 })
+          .lean();
         return docs.map((doc) => toEntity(doc) as OrderSummaryEntity);
+      },
+      async listPage(query = {}) {
+        const page = query.page ?? 1;
+        const pageSize = query.pageSize ?? 25;
+        const filter = toOrderSummaryMongoFilter(query);
+        const sort = toOrderSummaryMongoSort(query.sort ?? "createdAt:desc");
+        const [docs, total] = await Promise.all([
+          OrderSummaryModel.find(filter)
+            .sort(sort)
+            .skip((page - 1) * pageSize)
+            .limit(pageSize)
+            .lean(),
+          OrderSummaryModel.countDocuments(filter),
+        ]);
+
+        return {
+          orders: docs.map((doc) => toEntity(doc) as OrderSummaryEntity),
+          total,
+          page,
+          pageSize,
+        };
       },
       async findById(id) {
         const doc = await OrderSummaryModel.findById(id).lean();
@@ -273,7 +169,9 @@ export function createMongoDataStore(): DataStore {
         return docs.map((doc) => toEntity(doc.toObject()) as OrderLineEntity);
       },
       async list(filter = {}) {
-        const docs = await OrderLineModel.find(filter).sort({ rowNumber: 1 }).lean();
+        const docs = await OrderLineModel.find(filter)
+          .sort({ rowNumber: 1 })
+          .lean();
         return docs.map((doc) => toEntity(doc) as OrderLineEntity);
       },
       async count(filter = {}) {
@@ -287,11 +185,81 @@ let defaultStore: DataStore | undefined;
 
 export function getDefaultDataStore(): DataStore {
   if (!defaultStore) {
-    defaultStore =
-      process.env.DATA_STORE === "memory"
-        ? createMemoryDataStore()
-        : createMongoDataStore();
+    defaultStore = createMongoDataStore();
   }
 
   return defaultStore;
+}
+
+const orderSearchFields = [
+  "sourceOrderId",
+  "sourceOrderName",
+  "customerEmail",
+  "customerName",
+  "shipCity",
+  "shipCountry",
+] as const;
+
+const orderSorts: Record<OrderListSort, Record<string, 1 | -1>> = {
+  "createdAt:desc": { createdAt: -1, _id: -1 },
+  "createdAt:asc": { createdAt: 1, _id: 1 },
+  "orderDate:desc": { orderDate: -1, _id: -1 },
+  "orderDate:asc": { orderDate: 1, _id: 1 },
+  "totalAmount:desc": { totalAmount: -1, _id: -1 },
+  "totalAmount:asc": { totalAmount: 1, _id: 1 },
+};
+
+function toOrderSummaryMongoFilter(
+  query: OrderSummaryListQuery,
+): Record<string, unknown> {
+  const filter: Record<string, unknown> = {};
+
+  for (const field of [
+    "importRunId",
+    "salesChannel",
+    "orderStatus",
+    "paymentStatus",
+    "fulfillmentStatus",
+  ] as const) {
+    if (query[field] !== undefined) {
+      filter[field] = query[field];
+    }
+  }
+
+  if (query.q !== undefined) {
+    const search = new RegExp(escapeRegex(query.q), "i");
+    filter.$or = orderSearchFields.map((field) => ({ [field]: search }));
+  }
+
+  const orderDateRange: Record<string, string> = {};
+  if (query.dateFrom !== undefined) {
+    orderDateRange.$gte = query.dateFrom;
+  }
+  if (query.dateTo !== undefined) {
+    orderDateRange.$lte = query.dateTo;
+  }
+  if (Object.keys(orderDateRange).length > 0) {
+    filter.orderDate = orderDateRange;
+  }
+
+  const totalRange: Record<string, number> = {};
+  if (query.minTotal !== undefined) {
+    totalRange.$gte = query.minTotal;
+  }
+  if (query.maxTotal !== undefined) {
+    totalRange.$lte = query.maxTotal;
+  }
+  if (Object.keys(totalRange).length > 0) {
+    filter.totalAmount = totalRange;
+  }
+
+  return filter;
+}
+
+function toOrderSummaryMongoSort(sort: OrderListSort): Record<string, 1 | -1> {
+  return orderSorts[sort];
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

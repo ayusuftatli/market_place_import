@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runImportPipeline } from "../src/imports/importService";
-import { createMemoryDataStore } from "../src/shared/dataStore";
+import { createMongoDataStore } from "../src/shared/dataStore";
 import { findSourceValue, mapAndTransformRecord } from "../src/transformation/transformer";
 import { getBuiltInTemplate } from "../src/templates/builtInTemplates";
 import { amazonTsv, genericJson } from "./helpers";
@@ -46,7 +46,7 @@ describe("mapping and rollups", () => {
   });
 
   it("rolls line records up into summary totals and quantities", async () => {
-    const store = createMemoryDataStore();
+    const store = createMongoDataStore();
     const result = await runImportPipeline(store, "preview", {
       templateKey: "generic",
       inputKind: "records",
@@ -70,7 +70,7 @@ describe("mapping and rollups", () => {
   });
 
   it("accepts Amazon rows without customer PII", async () => {
-    const store = createMemoryDataStore();
+    const store = createMongoDataStore();
     const result = await runImportPipeline(store, "preview", {
       templateKey: "amazon",
       inputKind: "delimited",

@@ -140,6 +140,37 @@ export interface OrderLineEntity extends OrderLineFields {
   createdAt: Date;
 }
 
+export type OrderListSort =
+  | "createdAt:desc"
+  | "createdAt:asc"
+  | "orderDate:desc"
+  | "orderDate:asc"
+  | "totalAmount:desc"
+  | "totalAmount:asc";
+
+export interface OrderSummaryListQuery {
+  q?: string;
+  importRunId?: string;
+  salesChannel?: string;
+  orderStatus?: string;
+  paymentStatus?: string;
+  fulfillmentStatus?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  minTotal?: number;
+  maxTotal?: number;
+  sort?: OrderListSort;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface OrderSummaryListResult {
+  orders: OrderSummaryEntity[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface ImportRunEntity {
   id: string;
   templateKey: string;

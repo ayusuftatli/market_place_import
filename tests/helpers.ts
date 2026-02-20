@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createApp, type CreateAppOptions } from "../src/app";
-import { createMemoryDataStore, type DataStore } from "../src/shared/dataStore";
+import { createMongoDataStore, type DataStore } from "../src/shared/dataStore";
 import {
   AMAZON_SAMPLE_TSV,
   GENERIC_SAMPLE_CSV,
@@ -11,7 +11,7 @@ import {
 export function createTestContext(
   options: Omit<CreateAppOptions, "store"> = {},
 ): { app: Express; store: DataStore } {
-  const store = createMemoryDataStore();
+  const store = createMongoDataStore();
   return {
     app: createApp({ store, ...options }),
     store,

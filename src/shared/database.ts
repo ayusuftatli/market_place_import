@@ -2,9 +2,7 @@ import mongoose from "mongoose";
 
 export async function connectToDatabase(uri = process.env.MONGODB_URI): Promise<void> {
   if (!uri) {
-    throw new Error(
-      "MONGODB_URI is required unless DATA_STORE=memory is set for a non-persistent demo."
-    );
+    throw new Error("MONGODB_URI is required to start the application.");
   }
 
   try {
