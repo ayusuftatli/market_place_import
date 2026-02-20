@@ -1,9 +1,9 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   root: "ui",
-  base: "/ui/",
+  base: command === "serve" ? "/" : "/ui/",
   plugins: [react()],
   build: {
     outDir: "../dist/ui",
@@ -19,4 +19,4 @@ export default defineConfig({
       "/templates": "http://localhost:3000",
     },
   },
-});
+}));

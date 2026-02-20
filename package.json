@@ -4,7 +4,7 @@
   "description": "Client-facing marketplace import portal for Amazon, Shopify, and spreadsheet order exports",
   "main": "index.js",
   "scripts": {
-    "dev": "npm run dev:api",
+    "dev": "node scripts/dev.mjs",
     "dev:api": "tsx watch src/server.ts",
     "dev:ui": "vite --config ui/vite.config.ts",
     "build": "tsc && tsc -p ui/tsconfig.json && vite build --config ui/vite.config.ts",

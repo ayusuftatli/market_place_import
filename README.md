@@ -88,21 +88,24 @@ npm run build
 npm test
 ```
 
-Start the API:
-
-```bash
-npm run dev:api
-```
-
-For a local full-stack workflow, build the UI and serve it from the API:
+Start the local full-stack dev servers:
 
 ```bash
 npm run dev
 ```
 
-The API listens on `http://localhost:3000` and the built UI is served directly from `http://localhost:3000/`.
+The API listens on `http://localhost:3000`; the Vite UI listens on `http://localhost:5173/` and hot-reloads frontend changes.
 
-For a split local workflow, run the API and Vite UI separately:
+To serve the production-built UI from the API instead:
+
+```bash
+npm run build
+npm run dev:api
+```
+
+The built UI is served directly from `http://localhost:3000/`.
+
+For a split local workflow, the underlying scripts are still available:
 
 ```bash
 npm run dev:api
