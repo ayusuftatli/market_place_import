@@ -13,18 +13,11 @@ import {
   saveTemplateOverride,
 } from "./api";
 import {
-  AMAZON_SAMPLE_TSV,
-  GENERIC_SAMPLE_CSV,
-  GENERIC_SAMPLE_JSON,
-  SHOPIFY_SAMPLE_CSV,
-} from "./demoData";
-import {
   createDelimitedSource,
   createExcelSource,
   createRecordSource,
-  createSampleExcelWorkbook,
   downloadSampleExcel,
-  parseExcelRecords,
+  parseJsonImport,
   prepareImportFile,
 } from "./importFiles";
 import type {
@@ -89,6 +82,13 @@ const orderSortOptions: { value: OrderListSort; label: string }[] = [
 
 const pageSizeOptions = [10, 25, 50, 100];
 
+const sampleDataFiles = {
+  amazon: "/data/amazon-orders-report.tsv",
+  genericCsv: "/data/generic-marketplace-orders.csv",
+  genericJson: "/data/generic-marketplace-orders.json",
+  shopify: "/data/shopify-orders-export.csv",
+} as const;
+
 const defaultOrderQuery: OrderExplorerQuery = {
   sort: "createdAt:desc",
   page: 1,
@@ -107,7 +107,9 @@ type AppTab = "upload" | "explore";
 export function App() {
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [selectedTemplateKey, setSelectedTemplateKey] = useState("");
-  const [templateDetail, setTemplateDetail] = useState<TemplateDetail | null>(null);
+  const [templateDetail, setTemplateDetail] = useState<TemplateDetail | null>(
+    null,
+  );
   const [activeTab, setActiveTab] = useState<AppTab>("upload");
   const [orderQuery, setOrderQuery] = useState<OrderExplorerQuery>(() => ({
     ...defaultOrderQuery,
@@ -115,13 +117,21 @@ export function App() {
   const [orderList, setOrderList] = useState<OrderListResponse>(() => ({
     ...emptyOrderList,
   }));
-  const [selectedStoredOrderId, setSelectedStoredOrderId] = useState<string | null>(null);
-  const [selectedStoredOrderLines, setSelectedStoredOrderLines] = useState<OrderLine[]>([]);
+  const [selectedStoredOrderId, setSelectedStoredOrderId] = useState<
+    string | null
+  >(null);
+  const [selectedStoredOrderLines, setSelectedStoredOrderLines] = useState<
+    OrderLine[]
+  >([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderLinesLoading, setOrderLinesLoading] = useState(false);
   const [ordersError, setOrdersError] = useState("");
-  const [selectedPreviewOrderId, setSelectedPreviewOrderId] = useState<string | null>(null);
-  const [importSource, setImportSource] = useState<PreparedImportSource | null>(null);
+  const [selectedPreviewOrderId, setSelectedPreviewOrderId] = useState<
+    string | null
+  >(null);
+  const [importSource, setImportSource] = useState<PreparedImportSource | null>(
+    null,
+  );
   const [result, setResult] = useState<ImportResult | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [editorFormat, setEditorFormat] = useState<ConfigFormat>("yaml");
@@ -158,10 +168,16 @@ export function App() {
     [orderList.orders, selectedStoredOrderId],
   );
 
-  const orderPageCount = Math.max(1, Math.ceil(orderList.total / orderList.pageSize));
+  const orderPageCount = Math.max(
+    1,
+    Math.ceil(orderList.total / orderList.pageSize),
+  );
   const orderResultStart =
     orderList.total === 0 ? 0 : (orderList.page - 1) * orderList.pageSize + 1;
-  const orderResultEnd = Math.min(orderList.page * orderList.pageSize, orderList.total);
+  const orderResultEnd = Math.min(
+    orderList.page * orderList.pageSize,
+    orderList.total,
+  );
   const orderResultSummary =
     orderList.total === 0
       ? "No stored orders match these filters."
@@ -203,14 +219,16 @@ export function App() {
     setEditorFormat(format);
     setEditorContent(
       format === "yaml"
-        ? detail.override?.content ?? detail.builtInContent.yaml
+        ? (detail.override?.content ?? detail.builtInContent.yaml)
         : detail.override?.format === "json"
           ? detail.override.content
           : JSON.stringify(detail.template, null, 2),
     );
   }
 
-  async function refreshStoredOrderExplorer(query: OrderExplorerQuery = orderQuery) {
+  async function refreshStoredOrderExplorer(
+    query: OrderExplorerQuery = orderQuery,
+  ) {
     const requestId = orderRequestRef.current + 1;
     orderRequestRef.current = requestId;
     orderLineRequestRef.current += 1;
@@ -294,54 +312,103 @@ export function App() {
     });
   }
 
-  function loadSample(kind: "amazon" | "shopify" | "generic-csv" | "generic-json" | "generic-excel") {
-    if (kind === "amazon") {
-      setImportSource(
-        createDelimitedSource("amazon-orders-report.tsv", AMAZON_SAMPLE_TSV, "tsv"),
-      );
-      setSelectedTemplateKey("amazon");
-      setResult(null);
-      setMessage("Amazon sample loaded.");
-      return;
-    }
+  async function loadSample(
+    kind:
+      | "amazon"
+      | "shopify"
+      | "generic-csv"
+      | "generic-json"
+      | "generic-excel",
+  ) {
+    await runSafely("Loading sample", async () => {
+      if (kind === "amazon") {
+        setImportSource(
+          createDelimitedSource(
+            "amazon-orders-report.tsv",
+            await fetchSampleText(sampleDataFiles.amazon),
+            "tsv",
+          ),
+        );
+        setSelectedTemplateKey("amazon");
+        setResult(null);
+        setMessage("Amazon sample loaded.");
+        return;
+      }
 
-    if (kind === "shopify") {
-      setImportSource(
-        createDelimitedSource("shopify-orders-export.csv", SHOPIFY_SAMPLE_CSV, "csv"),
-      );
-      setSelectedTemplateKey("shopify");
-      setResult(null);
-      setMessage("Shopify sample loaded.");
-      return;
-    }
+      if (kind === "shopify") {
+        setImportSource(
+          createDelimitedSource(
+            "shopify-orders-export.csv",
+            await fetchSampleText(sampleDataFiles.shopify),
+            "csv",
+          ),
+        );
+        setSelectedTemplateKey("shopify");
+        setResult(null);
+        setMessage("Shopify sample loaded.");
+        return;
+      }
 
-    if (kind === "generic-json") {
-      setImportSource(createRecordSource("generic-orders.json", GENERIC_SAMPLE_JSON, "json"));
-      setSelectedTemplateKey("generic");
-      setResult(null);
-      setMessage("Generic JSON sample loaded.");
-      return;
-    }
+      if (kind === "generic-json") {
+        setImportSource(
+          createRecordSource(
+            "generic-marketplace-orders.json",
+            await fetchSampleRecords(sampleDataFiles.genericJson),
+            "json",
+          ),
+        );
+        setSelectedTemplateKey("generic");
+        setResult(null);
+        setMessage("Generic JSON sample loaded.");
+        return;
+      }
 
-    if (kind === "generic-excel") {
+      if (kind === "generic-excel") {
+        setImportSource(
+          createExcelSource(
+            "generic-marketplace-orders.xlsx",
+            await fetchSampleRecords(sampleDataFiles.genericJson),
+          ),
+        );
+        setSelectedTemplateKey("generic");
+        setResult(null);
+        setMessage("Generic Excel sample loaded.");
+        return;
+      }
+
       setImportSource(
-        createExcelSource(
-          "generic-marketplace-orders.xlsx",
-          parseExcelRecords(createSampleExcelWorkbook(GENERIC_SAMPLE_JSON)),
+        createDelimitedSource(
+          "generic-marketplace-orders.csv",
+          await fetchSampleText(sampleDataFiles.genericCsv),
+          "csv",
         ),
       );
       setSelectedTemplateKey("generic");
       setResult(null);
-      setMessage("Generic Excel sample loaded.");
-      return;
+      setMessage("Generic CSV sample loaded.");
+    });
+  }
+
+  async function handleDownloadSampleExcel() {
+    await runSafely("Preparing Excel", async () => {
+      downloadSampleExcel(
+        await fetchSampleRecords(sampleDataFiles.genericJson),
+      );
+      setMessage("Generic Excel sample downloaded.");
+    });
+  }
+
+  async function fetchSampleText(path: string): Promise<string> {
+    const response = await fetch(path, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Could not load ${path} (${response.status}).`);
     }
 
-    setImportSource(
-      createDelimitedSource("generic-marketplace-orders.csv", GENERIC_SAMPLE_CSV, "csv"),
-    );
-    setSelectedTemplateKey("generic");
-    setResult(null);
-    setMessage("Generic CSV sample loaded.");
+    return response.text();
+  }
+
+  async function fetchSampleRecords(path: string): Promise<SourceRecord[]> {
+    return parseJsonImport(await fetchSampleText(path));
   }
 
   async function handleImport(mode: "preview" | "commit") {
@@ -355,35 +422,40 @@ export function App() {
       return;
     }
 
-    await runSafely(mode === "preview" ? "Previewing import" : "Committing import", async () => {
-      const payload = buildImportRequest({
-        templateKey: selectedTemplateKey,
-        source: importSource,
-      });
-      const output =
-        mode === "preview"
-          ? await previewImport(payload)
-          : await commitImport(payload);
+    await runSafely(
+      mode === "preview" ? "Previewing import" : "Committing import",
+      async () => {
+        const payload = buildImportRequest({
+          templateKey: selectedTemplateKey,
+          source: importSource,
+        });
+        const output =
+          mode === "preview"
+            ? await previewImport(payload)
+            : await commitImport(payload);
 
-      setResult(output);
-      setSelectedPreviewOrderId(output.orderPreview[0]?.sourceOrderId ?? null);
+        setResult(output);
+        setSelectedPreviewOrderId(
+          output.orderPreview[0]?.sourceOrderId ?? null,
+        );
 
-      if (mode === "commit") {
-        const nextQuery = {
-          ...orderQuery,
-          page: 1,
-        };
-        setOrderQuery(nextQuery);
-        await refreshStoredOrderExplorer(nextQuery);
-        setActiveTab("explore");
-      }
+        if (mode === "commit") {
+          const nextQuery = {
+            ...orderQuery,
+            page: 1,
+          };
+          setOrderQuery(nextQuery);
+          await refreshStoredOrderExplorer(nextQuery);
+          setActiveTab("explore");
+        }
 
-      setMessage(
-        mode === "preview"
-          ? "Preview ready."
-          : `${output.storedOrderCount} order summary record(s) stored.`,
-      );
-    });
+        setMessage(
+          mode === "preview"
+            ? "Preview ready."
+            : `${output.storedOrderCount} order summary record(s) stored.`,
+        );
+      },
+    );
   }
 
   async function handleSelectStoredOrder(order: OrderSummary) {
@@ -505,7 +577,10 @@ export function App() {
                 <p className="eyebrow">Templates</p>
                 <h2>Choose a source lane</h2>
               </div>
-              <button className="ghost" onClick={() => setAdvancedOpen((open) => !open)}>
+              <button
+                className="ghost"
+                onClick={() => setAdvancedOpen((open) => !open)}
+              >
                 {advancedOpen ? "Hide advanced" : "Advanced template editor"}
               </button>
             </div>
@@ -540,17 +615,27 @@ export function App() {
                     <select
                       value={editorFormat}
                       onChange={(event) =>
-                        handleEditorFormatChange(event.target.value as ConfigFormat)
+                        handleEditorFormatChange(
+                          event.target.value as ConfigFormat,
+                        )
                       }
                     >
                       <option value="yaml">yaml</option>
                       <option value="json">json</option>
                     </select>
                   </label>
-                  <button className="ghost" onClick={handleRestoreTemplate} disabled={isBusy}>
+                  <button
+                    className="ghost"
+                    onClick={handleRestoreTemplate}
+                    disabled={isBusy}
+                  >
                     Restore built-in
                   </button>
-                  <button className="primary" onClick={handleSaveOverride} disabled={isBusy}>
+                  <button
+                    className="primary"
+                    onClick={handleSaveOverride}
+                    disabled={isBusy}
+                  >
                     Save override
                   </button>
                 </div>
@@ -601,10 +686,14 @@ export function App() {
                   className="sr-only"
                   type="file"
                   accept=".csv,.tsv,.json,.xls,.xlsx"
-                  onChange={(event) => void handleFileSelection(event.target.files)}
+                  onChange={(event) =>
+                    void handleFileSelection(event.target.files)
+                  }
                 />
                 <strong>
-                  {importSource ? importSource.fileName : "Drop a marketplace export"}
+                  {importSource
+                    ? importSource.fileName
+                    : "Drop a marketplace export"}
                 </strong>
                 <span>
                   {importSource
@@ -616,12 +705,25 @@ export function App() {
               </div>
 
               <div className="button-row">
-                <button onClick={() => loadSample("amazon")}>Amazon sample</button>
-                <button onClick={() => loadSample("shopify")}>Shopify sample</button>
-                <button onClick={() => loadSample("generic-csv")}>Generic CSV</button>
-                <button onClick={() => loadSample("generic-json")}>Generic JSON</button>
-                <button onClick={() => loadSample("generic-excel")}>Generic Excel</button>
-                <button className="ghost" onClick={() => downloadSampleExcel()}>
+                <button onClick={() => void loadSample("amazon")}>
+                  Amazon sample
+                </button>
+                <button onClick={() => void loadSample("shopify")}>
+                  Shopify sample
+                </button>
+                <button onClick={() => void loadSample("generic-csv")}>
+                  Generic CSV
+                </button>
+                <button onClick={() => void loadSample("generic-json")}>
+                  Generic JSON
+                </button>
+                <button onClick={() => void loadSample("generic-excel")}>
+                  Generic Excel
+                </button>
+                <button
+                  className="ghost"
+                  onClick={() => void handleDownloadSampleExcel()}
+                >
                   Download Excel
                 </button>
               </div>
@@ -642,14 +744,6 @@ export function App() {
                   Commit valid rows
                 </button>
               </div>
-
-              <div className="preview-block">
-                <h3>Source preview</h3>
-                <DataTable
-                  rows={importSource?.previewRows ?? []}
-                  emptyText="Load a file to preview the first rows."
-                />
-              </div>
             </div>
 
             <div className="result-panel">
@@ -665,8 +759,16 @@ export function App() {
                 <>
                   <div className="metric-grid">
                     <Metric label="Rows" value={result.totalRecords} />
-                    <Metric label="Valid" value={result.validRecords} tone="good" />
-                    <Metric label="Invalid" value={result.invalidRecords} tone="bad" />
+                    <Metric
+                      label="Valid"
+                      value={result.validRecords}
+                      tone="good"
+                    />
+                    <Metric
+                      label="Invalid"
+                      value={result.invalidRecords}
+                      tone="bad"
+                    />
                     <Metric label="Orders" value={result.orderPreview.length} />
                     <Metric label="Lines" value={result.linePreview.length} />
                     <Metric label="Stored" value={result.storedOrderCount} />
@@ -768,7 +870,9 @@ export function App() {
               <input
                 value={orderQuery.fulfillmentStatus ?? ""}
                 onChange={(event) =>
-                  handleOrderQueryChange({ fulfillmentStatus: event.target.value })
+                  handleOrderQueryChange({
+                    fulfillmentStatus: event.target.value,
+                  })
                 }
                 placeholder="fulfilled"
               />
@@ -822,7 +926,9 @@ export function App() {
               <select
                 value={orderQuery.sort || defaultOrderQuery.sort}
                 onChange={(event) =>
-                  handleOrderQueryChange({ sort: event.target.value as OrderListSort })
+                  handleOrderQueryChange({
+                    sort: event.target.value as OrderListSort,
+                  })
                 }
               >
                 {orderSortOptions.map((option) => (
@@ -835,7 +941,9 @@ export function App() {
             <label className="field-label">
               Page size
               <select
-                value={String(orderQuery.pageSize ?? defaultOrderQuery.pageSize)}
+                value={String(
+                  orderQuery.pageSize ?? defaultOrderQuery.pageSize,
+                )}
                 onChange={(event) =>
                   handleOrderQueryChange({ pageSize: event.target.value })
                 }
@@ -847,7 +955,10 @@ export function App() {
                 ))}
               </select>
             </label>
-            <button className="ghost filter-reset" onClick={handleClearOrderFilters}>
+            <button
+              className="ghost filter-reset"
+              onClick={handleClearOrderFilters}
+            >
               Clear filters
             </button>
           </div>
@@ -906,7 +1017,9 @@ export function App() {
                   String((row as OrderSummary).id ?? row.sourceOrderId)
                 }
                 activeRowKey={selectedStoredOrderId ?? undefined}
-                onRowClick={(row) => void handleSelectStoredOrder(row as OrderSummary)}
+                onRowClick={(row) =>
+                  void handleSelectStoredOrder(row as OrderSummary)
+                }
               />
             </div>
 
@@ -1018,8 +1131,7 @@ function DataTable(props: {
         </thead>
         <tbody>
           {props.rows.map((row, rowIndex) => {
-            const rowKey =
-              props.getRowKey?.(row, rowIndex) ?? String(rowIndex);
+            const rowKey = props.getRowKey?.(row, rowIndex) ?? String(rowIndex);
             const isActive = props.activeRowKey === rowKey;
 
             return (

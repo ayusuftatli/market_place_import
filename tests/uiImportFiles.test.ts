@@ -31,10 +31,6 @@ describe("UI import file helpers", () => {
       recordCount: 3,
       content: AMAZON_SAMPLE_TSV,
     });
-    expect(source.previewRows[0]).toMatchObject({
-      "amazon-order-id": "112-9739103-000001",
-      currency: "EUR",
-    });
   });
 
   it("accepts JSON arrays and records wrappers", () => {

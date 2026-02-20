@@ -1,6 +1,5 @@
 import { parse } from "csv-parse/browser/esm/sync";
 import { read, utils, write } from "xlsx";
-import { GENERIC_SAMPLE_JSON } from "./demoData";
 import type {
   ImportFileKind,
   PreparedImportSource,
@@ -17,7 +16,10 @@ export function detectImportFileKind(
   const normalizedName = fileName.toLowerCase();
   const normalizedType = mimeType.toLowerCase();
 
-  if (normalizedName.endsWith(".tsv") || normalizedType.includes("tab-separated")) {
+  if (
+    normalizedName.endsWith(".tsv") ||
+    normalizedType.includes("tab-separated")
+  ) {
     return "tsv";
   }
 
@@ -52,7 +54,11 @@ export async function prepareImportFile(
   }
 
   if (kind === "json") {
-    return createRecordSource(file.name, parseJsonImport(await file.text()), kind);
+    return createRecordSource(
+      file.name,
+      parseJsonImport(await file.text()),
+      kind,
+    );
   }
 
   return createExcelSource(
@@ -64,16 +70,17 @@ export async function prepareImportFile(
 export function createDelimitedSource(
   fileName: string,
   content: string,
-  kind: "csv" | "tsv" = detectDelimiter(content, fileName) === "\t" ? "tsv" : "csv",
+  kind: "csv" | "tsv" = detectDelimiter(content, fileName) === "\t"
+    ? "tsv"
+    : "csv",
 ): PreparedImportSource {
-  const records = parseDelimitedPreview(content, fileName);
+  const records = parseDelimitedRecords(content, fileName);
 
   return {
     kind,
     inputKind: "delimited",
     fileName,
     recordCount: records.length,
-    previewRows: records.slice(0, 5),
     content,
   };
 }
@@ -90,7 +97,6 @@ export function createRecordSource(
     inputKind: "records",
     fileName,
     recordCount: asserted.length,
-    previewRows: asserted.slice(0, 5),
     records: asserted,
   };
 }
@@ -142,7 +148,7 @@ export function parseExcelRecords(data: ArrayBuffer): SourceRecord[] {
 }
 
 export function createSampleExcelWorkbook(
-  records: SourceRecord[] = GENERIC_SAMPLE_JSON,
+  records: SourceRecord[],
 ): ArrayBuffer {
   const worksheet = utils.json_to_sheet(records);
   const workbook = utils.book_new();
@@ -154,8 +160,11 @@ export function createSampleExcelWorkbook(
   }) as ArrayBuffer;
 }
 
-export function downloadSampleExcel(fileName = "generic-marketplace-orders.xlsx"): void {
-  const blob = new Blob([createSampleExcelWorkbook()], {
+export function downloadSampleExcel(
+  records: SourceRecord[],
+  fileName = "generic-marketplace-orders.xlsx",
+): void {
+  const blob = new Blob([createSampleExcelWorkbook(records)], {
     type: EXCEL_MIME_TYPE,
   });
   const url = URL.createObjectURL(blob);
@@ -166,7 +175,7 @@ export function downloadSampleExcel(fileName = "generic-marketplace-orders.xlsx"
   URL.revokeObjectURL(url);
 }
 
-export function parseDelimitedPreview(
+export function parseDelimitedRecords(
   content: string,
   fileName = "import.txt",
 ): SourceRecord[] {
@@ -179,7 +188,9 @@ export function parseDelimitedPreview(
     bom: true,
     columns: (headers: string[]) => {
       const normalized = headers.map((header) => header.trim());
-      const emptyHeaderIndex = normalized.findIndex((header) => header.length === 0);
+      const emptyHeaderIndex = normalized.findIndex(
+        (header) => header.length === 0,
+      );
       if (emptyHeaderIndex !== -1) {
         throw new Error(
           `Header at column ${emptyHeaderIndex + 1} must not be empty.`,

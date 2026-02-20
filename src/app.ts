@@ -34,6 +34,14 @@ export function createApp(options: CreateAppOptions = {}) {
     res.json({ status: "ok" });
   });
 
+  app.use(
+    "/data",
+    express.static(path.join(process.cwd(), "examples", "data"), {
+      index: false,
+      redirect: false,
+    }),
+  );
+
   app.use("/templates", createTemplateRouter(store));
   app.use("/imports", createImportRouter(store));
   app.use("/orders", createOrderRouter(store));
@@ -57,7 +65,7 @@ function mountUi(app: Express, uiDistPath: string | false | undefined): void {
   app.use("/ui", express.static(resolvedUiDistPath, staticOptions));
   app.use(express.static(resolvedUiDistPath, staticOptions));
   app.get(
-    /^(?!\/(?:health|templates|imports|orders)(?:\/|$)).*/,
+    /^(?!\/(?:health|templates|imports|orders|data)(?:\/|$)).*/,
     (req, res, next) => {
       if (path.extname(req.path)) {
         res.status(404).end();
@@ -68,7 +76,10 @@ function mountUi(app: Express, uiDistPath: string | false | undefined): void {
         res
           .type("html")
           .send(
-            fs.readFileSync(path.join(resolvedUiDistPath, "index.html"), "utf8"),
+            fs.readFileSync(
+              path.join(resolvedUiDistPath, "index.html"),
+              "utf8",
+            ),
           );
       } catch (error) {
         next(error);

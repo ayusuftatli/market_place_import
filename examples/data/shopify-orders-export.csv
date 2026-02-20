@@ -1,4 +1,301 @@
 Id,Name,Email,Financial Status,Fulfillment Status,Paid at,Created at,Currency,Subtotal,Shipping,Taxes,Total,Discount Amount,Source,Shipping Name,Shipping City,Shipping Country,Lineitem quantity,Lineitem name,Lineitem price,Lineitem SKU,Lineitem discount,Lineitem fulfillment status
-5001001,#1001,olivia@example.com,paid,fulfilled,2026-04-12T08:10:00Z,2026-04-12T08:02:00Z,EUR,118.00,8.90,22.21,139.11,9.99,web,Olivia Reed,Berlin,DE,1,Cashmere Throw,79.00,THROW-CASH-01,9.99,fulfilled
-,,,,,,,,,,,,,,,,,2,Brass Candle Holder,19.50,CANDLE-BRASS-02,0.00,fulfilled
-5001002,#1002,leo@example.com,authorized,unfulfilled,2026-04-13T09:18:00Z,2026-04-13T09:10:00Z,USD,48.00,6.00,4.56,58.56,0.00,pos,Leo Martin,Munich,DE,3,Glass Storage Jar,16.00,JAR-GLASS-03,0.00,unfulfilled
+5001001,#1001,amara.okafor.5001001@example.com,paid,partial,2026-03-17T17:30:00.000Z,2026-03-17T15:33:00.000Z,EUR,144.72,10.24,27.50,182.46,0.00,marketplace,Amara Okafor,Dublin,IE,4,Enamel Mixing Bowl,36.18,BOWL-ENAMEL-43-1,0.00,partial
+5001002,#1002,lina.weber.5001002@example.com,authorized,shipped,2026-01-02T10:48:00.000Z,2026-01-02T08:40:00.000Z,EUR,232.44,10.65,44.16,287.25,0.00,marketplace,Lina Weber,Vienna,AT,1,Serving Bowl,29.25,BOWL-SERVE-02-1,0.00,shipped
+,,,,,,,,,,,,,,,,,3,Recycled Wool Blanket,67.73,BLANKET-WOOL-79-2,0.00,shipped
+5001003,#1003,leo.martin.5001003@example.com,refunded,partial,2026-04-02T12:48:00.000Z,2026-04-02T11:17:00.000Z,EUR,82.06,6.52,15.59,104.17,0.00,pos,Leo Martin,Munich,DE,1,Serving Bowl,22.90,BOWL-SERVE-54-1,3.42,partial
+,,,,,,,,,,,,,,,,,4,Steel Wall Hook,14.79,HOOK-STEEL-19-2,5.06,partial
+5001004,#1004,ben.carter.5001004@example.com,pending,fulfilled,,2026-01-27T17:45:00.000Z,GBP,461.62,2.34,92.32,556.28,0.00,web,Ben Carter,Manchester,GB,2,Ceramic Pour-Over Set,48.77,POUR-CERAMIC-29-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,4,Cashmere Throw,81.67,THROW-CASH-08-2,0.00,fulfilled
+,,,,,,,,,,,,,,,,,2,Steel Wall Hook,11.14,HOOK-STEEL-50-3,1.18,fulfilled
+,,,,,,,,,,,,,,,,,1,Glass Storage Jar,15.12,JAR-GLASS-05-4,0.00,fulfilled
+5001005,#1005,ben.carter.5001005@example.com,pending,fulfilled,2026-02-22T19:27:00.000Z,2026-02-22T17:26:00.000Z,GBP,104.46,7.40,20.89,116.21,16.54,marketplace,Ben Carter,Manchester,GB,3,Wool Cushion Cover,34.82,CUSHION-WOOL-19-1,1.23,fulfilled
+5001006,#1006,amara.okafor.5001006@example.com,authorized,unfulfilled,2026-02-18T19:28:00.000Z,2026-02-18T18:40:00.000Z,EUR,79.74,4.76,15.15,99.65,0.00,marketplace,Amara Okafor,Dublin,IE,1,Recycled Wool Blanket,79.74,BLANKET-WOOL-79-1,0.00,unfulfilled
+5001007,#1007,jonas.keller.5001007@example.com,paid,processing,2026-04-10T19:55:00.000Z,2026-04-10T19:11:00.000Z,CHF,579.02,8.88,46.90,634.80,0.00,pos,Jonas Keller,Zurich,CH,4,Walnut Desk Organizer,52.35,DESK-WALNUT-10-1,0.00,processing
+,,,,,,,,,,,,,,,,,4,Recycled Wool Blanket,72.32,BLANKET-WOOL-27-2,0.00,processing
+,,,,,,,,,,,,,,,,,2,Stoneware Plate,40.17,PLATE-STONE-98-3,0.00,processing
+5001008,#1008,lucas.meyer.5001008@example.com,refunded,fulfilled,2026-01-11T19:26:00.000Z,2026-01-11T17:32:00.000Z,EUR,285.52,5.11,54.25,344.88,0.00,web,Lucas Meyer,Hamburg,DE,2,Linen Lamp Shade,27.56,SHADE-LINEN-19-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,4,Matte Table Lamp,57.60,LAMP-MATTE-28-2,0.00,fulfilled
+5001009,#1009,amara.okafor.5001009@example.com,authorized,shipped,2026-02-20T09:25:00.000Z,2026-02-20T08:40:00.000Z,EUR,492.99,4.39,93.67,581.76,9.29,marketplace,Amara Okafor,Dublin,IE,1,Brass Candle Holder,20.85,CANDLE-BRASS-05-1,0.00,shipped
+,,,,,,,,,,,,,,,,,3,Organic Cotton Sheet Set,89.98,SHEET-COTTON-79-2,0.00,shipped
+,,,,,,,,,,,,,,,,,2,Stoneware Plate,33.20,PLATE-STONE-42-3,0.00,shipped
+,,,,,,,,,,,,,,,,,4,Linen Lamp Shade,33.95,SHADE-LINEN-63-4,0.00,shipped
+5001010,#1010,ben.carter.5001010@example.com,pending,unfulfilled,,2026-02-06T18:47:00.000Z,GBP,27.26,1.47,5.45,29.94,4.24,marketplace,Ben Carter,Manchester,GB,1,Serving Bowl,27.26,BOWL-SERVE-26-1,0.00,unfulfilled
+5001011,#1011,emma.rossi.5001011@example.com,refunded,processing,,2026-03-26T08:22:00.000Z,EUR,331.39,6.11,62.96,400.46,0.00,shopify_draft_order,Emma Rossi,Milan,IT,1,Recycled Wool Blanket,77.66,BLANKET-WOOL-03-1,0.00,processing
+,,,,,,,,,,,,,,,,,2,Linen Lamp Shade,31.64,SHADE-LINEN-08-2,0.00,processing
+,,,,,,,,,,,,,,,,,1,Ceramic Pour-Over Set,37.23,POUR-CERAMIC-50-3,0.00,processing
+,,,,,,,,,,,,,,,,,2,Cashmere Throw,76.61,THROW-CASH-77-4,0.00,processing
+5001012,#1012,lucas.meyer.5001012@example.com,refunded,processing,,2026-02-22T07:43:00.000Z,EUR,513.19,6.58,97.51,617.28,0.00,marketplace,Lucas Meyer,Hamburg,DE,4,Ceramic Pour-Over Set,47.64,POUR-CERAMIC-90-1,6.50,processing
+,,,,,,,,,,,,,,,,,2,Wool Cushion Cover,32.90,CUSHION-WOOL-20-2,0.00,processing
+,,,,,,,,,,,,,,,,,3,Oak Serving Tray,63.21,TRAY-OAK-84-3,7.46,processing
+,,,,,,,,,,,,,,,,,3,Serving Bowl,22.40,BOWL-SERVE-02-4,0.00,processing
+5001013,#1013,ava.shah.5001013@example.com,refunded,fulfilled,2026-01-23T15:59:00.000Z,2026-01-23T13:32:00.000Z,EUR,48.39,1.14,9.19,58.72,0.00,marketplace,Ava Shah,Cologne,DE,1,Walnut Desk Organizer,48.39,DESK-WALNUT-32-1,0.00,fulfilled
+5001014,#1014,emma.rossi.5001014@example.com,authorized,processing,2026-01-12T12:30:00.000Z,2026-01-12T11:20:00.000Z,EUR,249.51,7.22,47.41,294.33,9.81,pos,Emma Rossi,Milan,IT,3,Glass Storage Jar,14.05,JAR-GLASS-01-1,2.28,processing
+,,,,,,,,,,,,,,,,,1,Enamel Mixing Bowl,31.19,BOWL-ENAMEL-53-2,0.00,processing
+,,,,,,,,,,,,,,,,,2,Stoneware Plate,38.96,PLATE-STONE-91-3,0.00,processing
+,,,,,,,,,,,,,,,,,3,Enamel Mixing Bowl,32.75,BOWL-ENAMEL-43-4,0.00,processing
+5001015,#1015,olivia.reed.5001015@example.com,refunded,shipped,2026-02-04T18:38:00.000Z,2026-02-04T16:54:00.000Z,EUR,250.27,1.57,47.55,299.39,0.00,shopify_draft_order,Olivia Reed,Berlin,DE,3,Steel Wall Hook,18.85,HOOK-STEEL-95-1,2.03,shipped
+,,,,,,,,,,,,,,,,,4,Ceramic Pour-Over Set,48.43,POUR-CERAMIC-68-2,0.00,shipped
+5001016,#1016,lina.weber.5001016@example.com,paid,shipped,2026-04-27T08:30:00.000Z,2026-04-27T07:03:00.000Z,EUR,482.66,4.43,91.71,574.86,3.94,shopify_draft_order,Lina Weber,Vienna,AT,4,Serving Bowl,22.59,BOWL-SERVE-99-1,0.00,shipped
+,,,,,,,,,,,,,,,,,3,Enamel Mixing Bowl,39.14,BOWL-ENAMEL-58-2,0.00,shipped
+,,,,,,,,,,,,,,,,,2,Recycled Wool Blanket,72.30,BLANKET-WOOL-66-3,0.00,shipped
+,,,,,,,,,,,,,,,,,4,Wool Cushion Cover,32.57,CUSHION-WOOL-69-4,0.00,shipped
+5001017,#1017,ava.shah.5001017@example.com,authorized,shipped,2026-01-27T12:20:00.000Z,2026-01-27T09:22:00.000Z,EUR,116.36,2.10,22.11,136.69,3.88,marketplace,Ava Shah,Cologne,DE,4,Bamboo Bath Towel,29.09,TOWEL-BAMBOO-40-1,0.00,shipped
+5001018,#1018,sofia.novak.5001018@example.com,pending,processing,2026-01-10T15:04:00.000Z,2026-01-10T14:07:00.000Z,CZK,362.31,2.47,76.09,440.87,0.00,web,Sofia Novak,Prague,CZ,3,Enamel Mixing Bowl,34.57,BOWL-ENAMEL-56-1,4.93,processing
+,,,,,,,,,,,,,,,,,4,Oak Serving Tray,64.65,TRAY-OAK-22-2,3.99,processing
+5001019,#1019,lina.weber.5001019@example.com,pending,shipped,,2026-03-08T19:19:00.000Z,EUR,446.78,9.33,84.89,541.00,0.00,pos,Lina Weber,Vienna,AT,2,Recycled Wool Blanket,73.71,BLANKET-WOOL-61-1,0.00,shipped
+,,,,,,,,,,,,,,,,,4,Cashmere Throw,74.84,THROW-CASH-25-2,0.00,shipped
+5001020,#1020,amara.okafor.5001020@example.com,authorized,unfulfilled,2026-04-13T20:24:00.000Z,2026-04-13T18:13:00.000Z,EUR,87.69,1.69,16.66,106.04,0.00,web,Amara Okafor,Dublin,IE,3,Wool Cushion Cover,29.23,CUSHION-WOOL-42-1,0.00,unfulfilled
+5001021,#1021,amara.okafor.5001021@example.com,refunded,shipped,2026-01-29T13:44:00.000Z,2026-01-29T12:25:00.000Z,EUR,205.60,11.09,39.06,255.75,0.00,pos,Amara Okafor,Dublin,IE,2,Serving Bowl,24.46,BOWL-SERVE-01-1,0.00,shipped
+,,,,,,,,,,,,,,,,,1,Oak Serving Tray,68.60,TRAY-OAK-53-2,2.23,shipped
+,,,,,,,,,,,,,,,,,1,Matte Table Lamp,59.98,LAMP-MATTE-69-3,2.07,shipped
+,,,,,,,,,,,,,,,,,2,Glass Storage Jar,14.05,JAR-GLASS-94-4,2.52,shipped
+5001022,#1022,jonas.keller.5001022@example.com,refunded,fulfilled,2026-01-04T12:56:00.000Z,2026-01-04T11:20:00.000Z,CHF,680.21,2.21,55.10,737.52,0.00,web,Jonas Keller,Zurich,CH,1,Bamboo Bath Towel,20.13,TOWEL-BAMBOO-55-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,3,Cashmere Throw,81.80,THROW-CASH-53-2,0.00,fulfilled
+,,,,,,,,,,,,,,,,,2,Linen Lamp Shade,31.46,SHADE-LINEN-22-3,0.00,fulfilled
+,,,,,,,,,,,,,,,,,4,Organic Cotton Sheet Set,87.94,SHEET-COTTON-14-4,0.00,fulfilled
+5001023,#1023,amara.okafor.5001023@example.com,authorized,partial,2026-04-03T20:54:00.000Z,2026-04-03T19:48:00.000Z,EUR,294.02,9.07,55.86,358.95,0.00,marketplace,Amara Okafor,Dublin,IE,1,Recycled Wool Blanket,72.76,BLANKET-WOOL-32-1,0.00,partial
+,,,,,,,,,,,,,,,,,1,Stoneware Plate,43.82,PLATE-STONE-24-2,1.69,partial
+,,,,,,,,,,,,,,,,,4,Walnut Desk Organizer,44.36,DESK-WALNUT-57-3,0.00,partial
+5001024,#1024,lucas.meyer.5001024@example.com,pending,fulfilled,2026-02-24T14:50:00.000Z,2026-02-24T12:06:00.000Z,EUR,123.84,10.83,23.53,140.48,17.72,web,Lucas Meyer,Hamburg,DE,3,Enamel Mixing Bowl,28.63,BOWL-ENAMEL-16-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,1,Stoneware Plate,37.95,PLATE-STONE-17-2,0.00,fulfilled
+5001025,#1025,olivia.reed.5001025@example.com,pending,shipped,2026-02-14T13:44:00.000Z,2026-02-14T11:32:00.000Z,EUR,98.12,4.94,18.64,121.70,0.00,web,Olivia Reed,Berlin,DE,1,Glass Storage Jar,11.80,JAR-GLASS-97-1,0.00,shipped
+,,,,,,,,,,,,,,,,,2,Serving Bowl,27.96,BOWL-SERVE-49-2,0.00,shipped
+,,,,,,,,,,,,,,,,,1,Wool Cushion Cover,30.40,CUSHION-WOOL-20-3,1.03,shipped
+5001026,#1026,mia.foster.5001026@example.com,authorized,fulfilled,2026-01-23T22:10:00.000Z,2026-01-23T21:59:00.000Z,GBP,135.27,7.64,27.05,169.96,0.00,web,Mia Foster,London,GB,1,Serving Bowl,18.78,BOWL-SERVE-20-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,3,Enamel Mixing Bowl,38.83,BOWL-ENAMEL-35-2,0.00,fulfilled
+5001027,#1027,leo.martin.5001027@example.com,refunded,unfulfilled,2026-01-19T19:31:00.000Z,2026-01-19T18:46:00.000Z,EUR,444.43,10.97,84.44,531.03,8.81,shopify_draft_order,Leo Martin,Munich,DE,3,Wool Cushion Cover,31.02,CUSHION-WOOL-32-1,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,2,Steel Wall Hook,8.30,HOOK-STEEL-65-2,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,1,Stoneware Plate,38.05,PLATE-STONE-96-3,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,4,Cashmere Throw,74.18,THROW-CASH-12-4,4.30,unfulfilled
+5001028,#1028,lina.weber.5001028@example.com,refunded,partial,2026-01-07T11:52:00.000Z,2026-01-07T09:38:00.000Z,EUR,409.16,11.93,77.74,483.81,15.02,web,Lina Weber,Vienna,AT,3,Recycled Wool Blanket,72.03,BLANKET-WOOL-73-1,0.00,partial
+,,,,,,,,,,,,,,,,,2,Bamboo Bath Towel,24.77,TOWEL-BAMBOO-42-2,0.00,partial
+,,,,,,,,,,,,,,,,,1,Oak Serving Tray,69.93,TRAY-OAK-19-3,0.00,partial
+,,,,,,,,,,,,,,,,,2,Enamel Mixing Bowl,36.80,BOWL-ENAMEL-24-4,0.00,partial
+5001029,#1029,emma.rossi.5001029@example.com,authorized,partial,2026-03-25T10:52:00.000Z,2026-03-25T08:29:00.000Z,EUR,153.10,9.41,29.09,191.60,0.00,marketplace,Emma Rossi,Milan,IT,2,Serving Bowl,19.25,BOWL-SERVE-80-1,0.00,partial
+,,,,,,,,,,,,,,,,,4,Linen Lamp Shade,28.65,SHADE-LINEN-72-2,7.22,partial
+5001030,#1030,noah.park.5001030@example.com,paid,shipped,2026-01-04T08:41:00.000Z,2026-01-04T07:42:00.000Z,USD,199.42,1.69,16.45,217.56,0.00,marketplace,Noah Park,Austin,US,3,Glass Storage Jar,15.73,JAR-GLASS-15-1,0.00,shipped
+,,,,,,,,,,,,,,,,,2,Linen Lamp Shade,35.54,SHADE-LINEN-81-2,0.00,shipped
+,,,,,,,,,,,,,,,,,1,Stoneware Plate,37.76,PLATE-STONE-05-3,0.00,shipped
+,,,,,,,,,,,,,,,,,1,Stoneware Plate,43.39,PLATE-STONE-37-4,0.00,shipped
+5001031,#1031,leo.martin.5001031@example.com,authorized,partial,2026-03-18T23:30:00.000Z,2026-03-18T21:12:00.000Z,EUR,625.56,9.49,118.86,753.91,0.00,marketplace,Leo Martin,Munich,DE,4,Organic Cotton Sheet Set,97.19,SHEET-COTTON-01-1,0.00,partial
+,,,,,,,,,,,,,,,,,4,Walnut Desk Organizer,49.87,DESK-WALNUT-69-2,1.26,partial
+,,,,,,,,,,,,,,,,,1,Wool Cushion Cover,37.32,CUSHION-WOOL-03-3,0.00,partial
+5001032,#1032,ava.shah.5001032@example.com,refunded,unfulfilled,2026-04-23T19:52:00.000Z,2026-04-23T17:03:00.000Z,EUR,528.62,3.25,100.44,632.31,0.00,pos,Ava Shah,Cologne,DE,3,Ceramic Pour-Over Set,39.83,POUR-CERAMIC-50-1,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,2,Recycled Wool Blanket,78.52,BLANKET-WOOL-86-2,4.94,unfulfilled
+,,,,,,,,,,,,,,,,,3,Ceramic Pour-Over Set,47.24,POUR-CERAMIC-58-3,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,3,Stoneware Plate,36.79,PLATE-STONE-16-4,0.00,unfulfilled
+5001033,#1033,lina.weber.5001033@example.com,authorized,partial,2026-01-01T20:48:00.000Z,2026-01-01T18:29:00.000Z,EUR,605.55,2.44,115.05,723.04,0.00,shopify_draft_order,Lina Weber,Vienna,AT,4,Oak Serving Tray,70.03,TRAY-OAK-85-1,2.09,partial
+,,,,,,,,,,,,,,,,,4,Oak Serving Tray,63.72,TRAY-OAK-17-2,3.40,partial
+,,,,,,,,,,,,,,,,,1,Linen Lamp Shade,23.69,SHADE-LINEN-34-3,3.25,partial
+,,,,,,,,,,,,,,,,,3,Steel Wall Hook,15.62,HOOK-STEEL-97-4,0.00,partial
+5001034,#1034,lina.weber.5001034@example.com,refunded,unfulfilled,,2026-01-12T21:23:00.000Z,EUR,165.97,7.51,31.53,205.01,0.00,shopify_draft_order,Lina Weber,Vienna,AT,2,Brass Candle Holder,26.97,CANDLE-BRASS-96-1,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,1,Linen Lamp Shade,33.47,SHADE-LINEN-66-2,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,4,Bamboo Bath Towel,19.64,TOWEL-BAMBOO-31-3,0.00,unfulfilled
+5001035,#1035,leo.martin.5001035@example.com,paid,partial,2026-02-09T08:20:00.000Z,2026-02-09T08:07:00.000Z,EUR,175.94,9.48,33.43,218.85,0.00,pos,Leo Martin,Munich,DE,1,Enamel Mixing Bowl,32.24,BOWL-ENAMEL-28-1,2.02,partial
+,,,,,,,,,,,,,,,,,1,Cashmere Throw,76.95,THROW-CASH-48-2,7.58,partial
+,,,,,,,,,,,,,,,,,1,Serving Bowl,21.55,BOWL-SERVE-96-3,0.00,partial
+,,,,,,,,,,,,,,,,,1,Walnut Desk Organizer,45.20,DESK-WALNUT-15-4,0.00,partial
+5001036,#1036,lucas.meyer.5001036@example.com,authorized,processing,2026-02-23T10:12:00.000Z,2026-02-23T09:57:00.000Z,EUR,383.96,2.95,72.95,459.86,0.00,marketplace,Lucas Meyer,Hamburg,DE,1,Serving Bowl,18.10,BOWL-SERVE-56-1,0.00,processing
+,,,,,,,,,,,,,,,,,1,Oak Serving Tray,69.25,TRAY-OAK-06-2,0.00,processing
+,,,,,,,,,,,,,,,,,1,Ceramic Pour-Over Set,49.49,POUR-CERAMIC-44-3,0.00,processing
+,,,,,,,,,,,,,,,,,4,Matte Table Lamp,61.78,LAMP-MATTE-35-4,0.00,processing
+5001037,#1037,ava.shah.5001037@example.com,pending,partial,2026-03-22T16:19:00.000Z,2026-03-22T14:45:00.000Z,EUR,396.84,11.63,75.40,483.87,0.00,pos,Ava Shah,Cologne,DE,1,Matte Table Lamp,59.56,LAMP-MATTE-04-1,0.00,partial
+,,,,,,,,,,,,,,,,,3,Organic Cotton Sheet Set,92.76,SHEET-COTTON-97-2,0.00,partial
+,,,,,,,,,,,,,,,,,2,Enamel Mixing Bowl,29.50,BOWL-ENAMEL-38-3,0.00,partial
+5001038,#1038,ava.shah.5001038@example.com,refunded,fulfilled,,2026-01-01T18:08:00.000Z,EUR,64.36,8.93,12.23,85.52,0.00,marketplace,Ava Shah,Cologne,DE,1,Enamel Mixing Bowl,35.24,BOWL-ENAMEL-21-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,1,Bamboo Bath Towel,29.12,TOWEL-BAMBOO-80-2,0.00,fulfilled
+5001039,#1039,jonas.keller.5001039@example.com,pending,fulfilled,2026-04-03T09:42:00.000Z,2026-04-03T08:10:00.000Z,CHF,193.10,2.16,15.64,210.90,0.00,pos,Jonas Keller,Zurich,CH,1,Recycled Wool Blanket,75.62,BLANKET-WOOL-93-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,3,Enamel Mixing Bowl,39.16,BOWL-ENAMEL-26-2,0.00,fulfilled
+5001040,#1040,ben.carter.5001040@example.com,paid,partial,2026-03-19T15:36:00.000Z,2026-03-19T14:39:00.000Z,GBP,328.52,0.05,65.70,394.27,0.00,shopify_draft_order,Ben Carter,Manchester,GB,4,Glass Storage Jar,17.83,JAR-GLASS-56-1,2.70,partial
+,,,,,,,,,,,,,,,,,2,Bamboo Bath Towel,24.92,TOWEL-BAMBOO-34-2,0.00,partial
+,,,,,,,,,,,,,,,,,3,Oak Serving Tray,69.12,TRAY-OAK-10-3,0.00,partial
+5001041,#1041,noah.park.5001041@example.com,pending,fulfilled,2026-01-23T16:55:00.000Z,2026-01-23T14:58:00.000Z,USD,476.01,3.68,39.27,518.96,0.00,web,Noah Park,Austin,US,2,Matte Table Lamp,62.39,LAMP-MATTE-42-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,3,Oak Serving Tray,59.58,TRAY-OAK-45-2,0.00,fulfilled
+,,,,,,,,,,,,,,,,,3,Stoneware Plate,43.17,PLATE-STONE-41-3,3.02,fulfilled
+,,,,,,,,,,,,,,,,,2,Bamboo Bath Towel,21.49,TOWEL-BAMBOO-28-4,0.00,fulfilled
+5001042,#1042,lucas.meyer.5001042@example.com,authorized,unfulfilled,2026-02-23T14:44:00.000Z,2026-02-23T13:23:00.000Z,EUR,149.36,12.37,28.38,176.82,13.29,marketplace,Lucas Meyer,Hamburg,DE,2,Recycled Wool Blanket,74.68,BLANKET-WOOL-12-1,0.00,unfulfilled
+5001043,#1043,lina.weber.5001043@example.com,paid,processing,2026-01-30T18:04:00.000Z,2026-01-30T15:55:00.000Z,EUR,110.67,1.10,21.03,125.69,7.11,web,Lina Weber,Vienna,AT,3,Enamel Mixing Bowl,36.89,BOWL-ENAMEL-37-1,2.04,processing
+5001044,#1044,sofia.novak.5001044@example.com,pending,partial,2026-03-03T21:32:00.000Z,2026-03-03T19:18:00.000Z,CZK,427.30,6.35,89.73,517.59,5.79,pos,Sofia Novak,Prague,CZ,4,Stoneware Plate,38.74,PLATE-STONE-15-1,1.13,partial
+,,,,,,,,,,,,,,,,,3,Wool Cushion Cover,39.94,CUSHION-WOOL-68-2,0.00,partial
+,,,,,,,,,,,,,,,,,2,Wool Cushion Cover,40.50,CUSHION-WOOL-36-3,0.00,partial
+,,,,,,,,,,,,,,,,,4,Steel Wall Hook,17.88,HOOK-STEEL-56-4,0.00,partial
+5001045,#1045,mia.foster.5001045@example.com,authorized,processing,2026-02-21T18:52:00.000Z,2026-02-21T16:29:00.000Z,GBP,122.67,9.33,24.53,156.53,0.00,marketplace,Mia Foster,London,GB,3,Wool Cushion Cover,40.89,CUSHION-WOOL-48-1,0.00,processing
+5001046,#1046,ava.shah.5001046@example.com,authorized,unfulfilled,,2026-03-29T19:14:00.000Z,EUR,265.24,4.08,50.40,319.72,0.00,web,Ava Shah,Cologne,DE,4,Serving Bowl,19.40,BOWL-SERVE-68-1,3.83,unfulfilled
+,,,,,,,,,,,,,,,,,3,Enamel Mixing Bowl,34.89,BOWL-ENAMEL-55-2,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,4,Steel Wall Hook,14.59,HOOK-STEEL-03-3,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,1,Linen Lamp Shade,24.61,SHADE-LINEN-18-4,0.00,unfulfilled
+5001047,#1047,ava.shah.5001047@example.com,refunded,processing,2026-03-19T13:03:00.000Z,2026-03-19T11:14:00.000Z,EUR,382.68,2.72,72.71,442.15,15.96,web,Ava Shah,Cologne,DE,3,Enamel Mixing Bowl,29.63,BOWL-ENAMEL-97-1,0.00,processing
+,,,,,,,,,,,,,,,,,1,Bamboo Bath Towel,25.61,TOWEL-BAMBOO-02-2,0.00,processing
+,,,,,,,,,,,,,,,,,4,Glass Storage Jar,21.64,JAR-GLASS-23-3,0.00,processing
+,,,,,,,,,,,,,,,,,2,Organic Cotton Sheet Set,90.81,SHEET-COTTON-02-4,0.00,processing
+5001048,#1048,lucas.meyer.5001048@example.com,authorized,unfulfilled,2026-02-06T16:03:00.000Z,2026-02-06T14:54:00.000Z,EUR,460.21,0.33,87.44,547.98,0.00,web,Lucas Meyer,Hamburg,DE,4,Stoneware Plate,37.70,PLATE-STONE-44-1,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,1,Oak Serving Tray,61.47,TRAY-OAK-25-2,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,3,Recycled Wool Blanket,68.58,BLANKET-WOOL-28-3,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,2,Brass Candle Holder,21.10,CANDLE-BRASS-41-4,0.00,unfulfilled
+5001049,#1049,ava.shah.5001049@example.com,authorized,partial,2026-03-22T10:27:00.000Z,2026-03-22T09:35:00.000Z,EUR,63.20,11.85,12.01,87.06,0.00,web,Ava Shah,Cologne,DE,2,Wool Cushion Cover,31.60,CUSHION-WOOL-22-1,0.00,partial
+5001050,#1050,amara.okafor.5001050@example.com,paid,unfulfilled,2026-03-24T12:13:00.000Z,2026-03-24T10:59:00.000Z,EUR,348.66,4.21,66.25,419.12,0.00,shopify_draft_order,Amara Okafor,Dublin,IE,2,Steel Wall Hook,20.60,HOOK-STEEL-14-1,4.01,unfulfilled
+,,,,,,,,,,,,,,,,,2,Recycled Wool Blanket,76.49,BLANKET-WOOL-95-2,4.07,unfulfilled
+,,,,,,,,,,,,,,,,,2,Recycled Wool Blanket,77.24,BLANKET-WOOL-92-3,1.90,unfulfilled
+5001051,#1051,noah.park.5001051@example.com,refunded,partial,,2026-03-16T21:28:00.000Z,USD,310.30,2.65,25.60,338.55,0.00,web,Noah Park,Austin,US,3,Organic Cotton Sheet Set,85.98,SHEET-COTTON-48-1,0.00,partial
+,,,,,,,,,,,,,,,,,2,Brass Candle Holder,26.18,CANDLE-BRASS-75-2,1.67,partial
+5001052,#1052,leo.martin.5001052@example.com,refunded,fulfilled,2026-03-09T15:05:00.000Z,2026-03-09T13:17:00.000Z,EUR,328.71,11.89,62.45,403.05,0.00,web,Leo Martin,Munich,DE,2,Ceramic Pour-Over Set,40.62,POUR-CERAMIC-11-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,3,Wool Cushion Cover,41.98,CUSHION-WOOL-67-2,0.00,fulfilled
+,,,,,,,,,,,,,,,,,3,Stoneware Plate,40.51,PLATE-STONE-95-3,0.00,fulfilled
+5001053,#1053,leo.martin.5001053@example.com,authorized,fulfilled,2026-02-08T10:14:00.000Z,2026-02-08T07:15:00.000Z,EUR,364.50,6.30,69.25,440.06,0.00,shopify_draft_order,Leo Martin,Munich,DE,2,Wool Cushion Cover,37.35,CUSHION-WOOL-51-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,2,Oak Serving Tray,64.60,TRAY-OAK-64-2,4.21,fulfilled
+,,,,,,,,,,,,,,,,,4,Stoneware Plate,40.15,PLATE-STONE-22-3,0.00,fulfilled
+5001054,#1054,lucas.meyer.5001054@example.com,paid,unfulfilled,,2026-02-26T18:21:00.000Z,EUR,142.06,2.04,26.99,171.09,0.00,marketplace,Lucas Meyer,Hamburg,DE,2,Oak Serving Tray,71.03,TRAY-OAK-72-1,0.00,unfulfilled
+5001055,#1055,mia.foster.5001055@example.com,pending,fulfilled,2026-04-11T20:45:00.000Z,2026-04-11T19:57:00.000Z,GBP,279.98,0.78,56.00,336.76,0.00,web,Mia Foster,London,GB,1,Enamel Mixing Bowl,31.32,BOWL-ENAMEL-25-1,0.61,fulfilled
+,,,,,,,,,,,,,,,,,2,Stoneware Plate,43.95,PLATE-STONE-72-2,7.49,fulfilled
+,,,,,,,,,,,,,,,,,4,Ceramic Pour-Over Set,40.19,POUR-CERAMIC-40-3,0.00,fulfilled
+5001056,#1056,mia.foster.5001056@example.com,refunded,fulfilled,2026-02-10T21:56:00.000Z,2026-02-10T20:42:00.000Z,GBP,176.78,4.43,35.36,216.57,0.00,web,Mia Foster,London,GB,2,Organic Cotton Sheet Set,88.39,SHEET-COTTON-90-1,0.00,fulfilled
+5001057,#1057,ben.carter.5001057@example.com,refunded,fulfilled,2026-01-21T15:49:00.000Z,2026-01-21T15:29:00.000Z,GBP,243.62,0.46,48.72,292.80,0.00,shopify_draft_order,Ben Carter,Manchester,GB,3,Enamel Mixing Bowl,39.22,BOWL-ENAMEL-16-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,4,Stoneware Plate,31.49,PLATE-STONE-70-2,0.00,fulfilled
+5001058,#1058,leo.martin.5001058@example.com,pending,processing,2026-04-06T12:04:00.000Z,2026-04-06T11:33:00.000Z,EUR,414.53,3.61,78.76,492.04,4.86,pos,Leo Martin,Munich,DE,3,Matte Table Lamp,58.88,LAMP-MATTE-92-1,0.00,processing
+,,,,,,,,,,,,,,,,,1,Oak Serving Tray,67.91,TRAY-OAK-29-2,7.87,processing
+,,,,,,,,,,,,,,,,,2,Cashmere Throw,84.99,THROW-CASH-12-3,0.00,processing
+5001059,#1059,mia.foster.5001059@example.com,paid,fulfilled,,2026-01-29T16:05:00.000Z,GBP,75.93,11.47,15.19,96.98,5.61,web,Mia Foster,London,GB,3,Linen Lamp Shade,25.31,SHADE-LINEN-22-1,3.19,fulfilled
+5001060,#1060,lucas.meyer.5001060@example.com,paid,partial,2026-02-09T16:43:00.000Z,2026-02-09T14:16:00.000Z,EUR,215.16,6.49,40.88,256.45,6.08,pos,Lucas Meyer,Hamburg,DE,4,Matte Table Lamp,53.79,LAMP-MATTE-12-1,0.00,partial
+5001061,#1061,leo.martin.5001061@example.com,pending,unfulfilled,,2026-01-04T17:22:00.000Z,EUR,71.67,2.91,13.62,82.37,5.83,shopify_draft_order,Leo Martin,Munich,DE,3,Glass Storage Jar,23.89,JAR-GLASS-64-1,0.00,unfulfilled
+5001062,#1062,leo.martin.5001062@example.com,authorized,partial,,2026-04-10T21:17:00.000Z,EUR,476.06,12.08,90.45,578.59,0.00,pos,Leo Martin,Munich,DE,1,Glass Storage Jar,16.71,JAR-GLASS-77-1,0.00,partial
+,,,,,,,,,,,,,,,,,1,Brass Candle Holder,21.99,CANDLE-BRASS-44-2,0.00,partial
+,,,,,,,,,,,,,,,,,3,Ceramic Pour-Over Set,46.64,POUR-CERAMIC-85-3,0.00,partial
+,,,,,,,,,,,,,,,,,4,Recycled Wool Blanket,74.36,BLANKET-WOOL-94-4,0.00,partial
+5001063,#1063,lucas.meyer.5001063@example.com,pending,processing,2026-01-31T09:37:00.000Z,2026-01-31T09:02:00.000Z,EUR,483.48,1.54,91.86,576.88,0.00,marketplace,Lucas Meyer,Hamburg,DE,1,Glass Storage Jar,13.94,JAR-GLASS-23-1,0.00,processing
+,,,,,,,,,,,,,,,,,3,Oak Serving Tray,65.57,TRAY-OAK-99-2,0.00,processing
+,,,,,,,,,,,,,,,,,4,Matte Table Lamp,53.59,LAMP-MATTE-56-3,0.00,processing
+,,,,,,,,,,,,,,,,,3,Glass Storage Jar,19.49,JAR-GLASS-28-4,0.00,processing
+5001064,#1064,leo.martin.5001064@example.com,refunded,shipped,,2026-03-17T15:17:00.000Z,EUR,412.48,12.20,78.37,503.05,0.00,shopify_draft_order,Leo Martin,Munich,DE,4,Cashmere Throw,86.30,THROW-CASH-64-1,0.00,shipped
+,,,,,,,,,,,,,,,,,4,Glass Storage Jar,16.82,JAR-GLASS-80-2,0.00,shipped
+5001065,#1065,noah.park.5001065@example.com,authorized,shipped,2026-04-06T12:59:00.000Z,2026-04-06T10:59:00.000Z,USD,167.84,10.03,13.85,176.06,15.66,pos,Noah Park,Austin,US,2,Matte Table Lamp,56.47,LAMP-MATTE-25-1,0.00,shipped
+,,,,,,,,,,,,,,,,,3,Serving Bowl,18.30,BOWL-SERVE-95-2,1.51,shipped
+5001066,#1066,mia.foster.5001066@example.com,refunded,fulfilled,2026-03-01T11:00:00.000Z,2026-03-01T08:21:00.000Z,GBP,738.35,8.01,147.67,876.46,17.57,pos,Mia Foster,London,GB,2,Serving Bowl,26.72,BOWL-SERVE-37-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,1,Wool Cushion Cover,36.99,CUSHION-WOOL-45-2,0.00,fulfilled
+,,,,,,,,,,,,,,,,,4,Oak Serving Tray,64.77,TRAY-OAK-01-3,0.00,fulfilled
+,,,,,,,,,,,,,,,,,4,Organic Cotton Sheet Set,97.21,SHEET-COTTON-26-4,0.00,fulfilled
+5001067,#1067,olivia.reed.5001067@example.com,pending,unfulfilled,2026-03-11T11:14:00.000Z,2026-03-11T10:13:00.000Z,EUR,403.65,1.05,76.69,481.39,0.00,marketplace,Olivia Reed,Berlin,DE,3,Serving Bowl,25.46,BOWL-SERVE-24-1,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,2,Cashmere Throw,74.44,THROW-CASH-07-2,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,2,Cashmere Throw,79.47,THROW-CASH-99-3,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,1,Brass Candle Holder,19.45,CANDLE-BRASS-31-4,0.00,unfulfilled
+5001068,#1068,sofia.novak.5001068@example.com,paid,fulfilled,,2026-02-01T13:47:00.000Z,CZK,303.28,2.08,63.69,369.05,0.00,marketplace,Sofia Novak,Prague,CZ,3,Ceramic Pour-Over Set,44.01,POUR-CERAMIC-07-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,1,Organic Cotton Sheet Set,92.03,SHEET-COTTON-82-2,0.00,fulfilled
+,,,,,,,,,,,,,,,,,2,Stoneware Plate,39.61,PLATE-STONE-88-3,0.00,fulfilled
+5001069,#1069,mia.foster.5001069@example.com,pending,processing,,2026-01-31T18:55:00.000Z,GBP,433.65,10.58,86.73,530.96,0.00,pos,Mia Foster,London,GB,3,Ceramic Pour-Over Set,45.04,POUR-CERAMIC-26-1,0.00,processing
+,,,,,,,,,,,,,,,,,2,Cashmere Throw,75.70,THROW-CASH-26-2,0.00,processing
+,,,,,,,,,,,,,,,,,3,Wool Cushion Cover,38.05,CUSHION-WOOL-66-3,0.00,processing
+,,,,,,,,,,,,,,,,,2,Brass Candle Holder,16.49,CANDLE-BRASS-66-4,0.00,processing
+5001070,#1070,ben.carter.5001070@example.com,authorized,unfulfilled,2026-01-24T14:45:00.000Z,2026-01-24T12:54:00.000Z,GBP,129.70,11.17,25.94,166.81,0.00,pos,Ben Carter,Manchester,GB,2,Walnut Desk Organizer,44.82,DESK-WALNUT-98-1,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,1,Stoneware Plate,40.06,PLATE-STONE-09-2,0.00,unfulfilled
+5001071,#1071,olivia.reed.5001071@example.com,refunded,shipped,2026-03-31T20:19:00.000Z,2026-03-31T18:18:00.000Z,EUR,492.11,9.80,93.50,595.41,0.00,web,Olivia Reed,Berlin,DE,3,Recycled Wool Blanket,79.43,BLANKET-WOOL-05-1,0.00,shipped
+,,,,,,,,,,,,,,,,,3,Walnut Desk Organizer,52.59,DESK-WALNUT-79-2,6.40,shipped
+,,,,,,,,,,,,,,,,,2,Wool Cushion Cover,30.77,CUSHION-WOOL-61-3,0.00,shipped
+,,,,,,,,,,,,,,,,,1,Enamel Mixing Bowl,34.51,BOWL-ENAMEL-74-4,0.00,shipped
+5001072,#1072,lucas.meyer.5001072@example.com,refunded,shipped,2026-03-31T18:05:00.000Z,2026-03-31T17:45:00.000Z,EUR,162.33,9.98,30.84,203.15,0.00,web,Lucas Meyer,Hamburg,DE,3,Enamel Mixing Bowl,39.30,BOWL-ENAMEL-93-1,0.00,shipped
+,,,,,,,,,,,,,,,,,1,Walnut Desk Organizer,44.43,DESK-WALNUT-36-2,0.00,shipped
+5001073,#1073,lucas.meyer.5001073@example.com,authorized,partial,2026-02-18T21:18:00.000Z,2026-02-18T19:52:00.000Z,EUR,71.67,1.87,13.62,87.16,0.00,pos,Lucas Meyer,Hamburg,DE,1,Oak Serving Tray,71.67,TRAY-OAK-51-1,0.00,partial
+5001074,#1074,ava.shah.5001074@example.com,refunded,fulfilled,2026-04-10T15:10:00.000Z,2026-04-10T13:47:00.000Z,EUR,701.96,6.24,133.37,841.57,0.00,shopify_draft_order,Ava Shah,Cologne,DE,2,Walnut Desk Organizer,43.90,DESK-WALNUT-01-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,3,Recycled Wool Blanket,71.84,BLANKET-WOOL-40-2,0.00,fulfilled
+,,,,,,,,,,,,,,,,,4,Wool Cushion Cover,29.15,CUSHION-WOOL-51-3,0.00,fulfilled
+,,,,,,,,,,,,,,,,,4,Oak Serving Tray,70.51,TRAY-OAK-63-4,0.00,fulfilled
+5001075,#1075,leo.martin.5001075@example.com,pending,shipped,2026-03-18T09:53:00.000Z,2026-03-18T09:00:00.000Z,EUR,162.28,11.26,30.83,204.37,0.00,marketplace,Leo Martin,Munich,DE,4,Wool Cushion Cover,40.57,CUSHION-WOOL-53-1,0.00,shipped
+5001076,#1076,mia.foster.5001076@example.com,authorized,fulfilled,,2026-04-16T07:35:00.000Z,GBP,369.70,0.19,73.94,432.32,11.51,marketplace,Mia Foster,London,GB,1,Oak Serving Tray,71.72,TRAY-OAK-07-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,2,Cashmere Throw,78.88,THROW-CASH-99-2,0.00,fulfilled
+,,,,,,,,,,,,,,,,,3,Serving Bowl,20.40,BOWL-SERVE-63-3,0.00,fulfilled
+,,,,,,,,,,,,,,,,,1,Recycled Wool Blanket,79.02,BLANKET-WOOL-65-4,6.12,fulfilled
+5001077,#1077,mia.foster.5001077@example.com,authorized,processing,2026-04-26T18:26:00.000Z,2026-04-26T17:10:00.000Z,GBP,535.86,6.11,107.17,636.23,12.91,shopify_draft_order,Mia Foster,London,GB,4,Enamel Mixing Bowl,27.25,BOWL-ENAMEL-89-1,0.00,processing
+,,,,,,,,,,,,,,,,,2,Organic Cotton Sheet Set,93.42,SHEET-COTTON-52-2,6.80,processing
+,,,,,,,,,,,,,,,,,4,Serving Bowl,17.98,BOWL-SERVE-77-3,0.00,processing
+,,,,,,,,,,,,,,,,,2,Cashmere Throw,84.05,THROW-CASH-82-4,0.00,processing
+5001078,#1078,jonas.keller.5001078@example.com,paid,partial,2026-03-14T10:04:00.000Z,2026-03-14T09:50:00.000Z,CHF,278.70,7.72,22.57,304.20,4.79,shopify_draft_order,Jonas Keller,Zurich,CH,2,Wool Cushion Cover,29.03,CUSHION-WOOL-06-1,0.00,partial
+,,,,,,,,,,,,,,,,,4,Ceramic Pour-Over Set,37.79,POUR-CERAMIC-77-2,0.00,partial
+,,,,,,,,,,,,,,,,,3,Linen Lamp Shade,23.16,SHADE-LINEN-56-3,0.00,partial
+5001079,#1079,lucas.meyer.5001079@example.com,paid,fulfilled,2026-03-17T16:25:00.000Z,2026-03-17T15:35:00.000Z,EUR,77.04,6.96,14.64,98.64,0.00,web,Lucas Meyer,Hamburg,DE,3,Bamboo Bath Towel,25.68,TOWEL-BAMBOO-68-1,0.00,fulfilled
+5001080,#1080,leo.martin.5001080@example.com,pending,unfulfilled,2026-02-12T22:18:00.000Z,2026-02-12T20:14:00.000Z,EUR,157.87,7.94,30.00,195.81,0.00,shopify_draft_order,Leo Martin,Munich,DE,3,Glass Storage Jar,19.99,JAR-GLASS-32-1,1.41,unfulfilled
+,,,,,,,,,,,,,,,,,2,Walnut Desk Organizer,48.95,DESK-WALNUT-40-2,0.00,unfulfilled
+5001081,#1081,emma.rossi.5001081@example.com,refunded,shipped,2026-04-24T14:18:00.000Z,2026-04-24T13:39:00.000Z,EUR,417.42,7.31,79.31,501.43,2.61,web,Emma Rossi,Milan,IT,4,Steel Wall Hook,18.02,HOOK-STEEL-01-1,0.00,shipped
+,,,,,,,,,,,,,,,,,4,Stoneware Plate,33.16,PLATE-STONE-28-2,0.00,shipped
+,,,,,,,,,,,,,,,,,3,Walnut Desk Organizer,51.56,DESK-WALNUT-86-3,0.00,shipped
+,,,,,,,,,,,,,,,,,2,Bamboo Bath Towel,29.01,TOWEL-BAMBOO-20-4,0.00,shipped
+5001082,#1082,sofia.novak.5001082@example.com,pending,fulfilled,,2026-01-13T09:31:00.000Z,CZK,86.94,3.37,18.26,101.27,7.30,web,Sofia Novak,Prague,CZ,2,Ceramic Pour-Over Set,43.47,POUR-CERAMIC-12-1,0.00,fulfilled
+5001083,#1083,noah.park.5001083@example.com,refunded,fulfilled,,2026-01-21T15:45:00.000Z,USD,41.48,12.35,3.42,50.40,6.85,marketplace,Noah Park,Austin,US,1,Ceramic Pour-Over Set,41.48,POUR-CERAMIC-04-1,0.00,fulfilled
+5001084,#1084,amara.okafor.5001084@example.com,paid,partial,,2026-03-04T15:39:00.000Z,EUR,79.86,3.53,15.17,98.56,0.00,web,Amara Okafor,Dublin,IE,3,Steel Wall Hook,17.16,HOOK-STEEL-54-1,0.00,partial
+,,,,,,,,,,,,,,,,,1,Bamboo Bath Towel,28.38,TOWEL-BAMBOO-58-2,0.00,partial
+5001085,#1085,lucas.meyer.5001085@example.com,paid,shipped,2026-03-09T10:24:00.000Z,2026-03-09T08:23:00.000Z,EUR,65.52,0.66,12.45,78.63,0.00,marketplace,Lucas Meyer,Hamburg,DE,2,Wool Cushion Cover,32.76,CUSHION-WOOL-66-1,0.00,shipped
+5001086,#1086,jonas.keller.5001086@example.com,authorized,processing,2026-01-09T12:53:00.000Z,2026-01-09T12:43:00.000Z,CHF,671.49,6.12,54.39,732.00,0.00,web,Jonas Keller,Zurich,CH,4,Wool Cushion Cover,39.15,CUSHION-WOOL-43-1,7.16,processing
+,,,,,,,,,,,,,,,,,3,Walnut Desk Organizer,55.48,DESK-WALNUT-50-2,4.90,processing
+,,,,,,,,,,,,,,,,,3,Recycled Wool Blanket,74.66,BLANKET-WOOL-58-3,2.75,processing
+,,,,,,,,,,,,,,,,,3,Stoneware Plate,41.49,PLATE-STONE-46-4,0.00,processing
+5001087,#1087,ben.carter.5001087@example.com,authorized,processing,2026-01-26T23:33:00.000Z,2026-01-26T21:48:00.000Z,GBP,179.95,2.45,35.99,218.39,0.00,web,Ben Carter,Manchester,GB,3,Wool Cushion Cover,38.03,CUSHION-WOOL-87-1,5.02,processing
+,,,,,,,,,,,,,,,,,2,Wool Cushion Cover,32.93,CUSHION-WOOL-78-2,0.00,processing
+5001088,#1088,sofia.novak.5001088@example.com,pending,fulfilled,,2026-02-03T20:05:00.000Z,CZK,498.98,3.05,104.79,603.59,3.23,shopify_draft_order,Sofia Novak,Prague,CZ,2,Matte Table Lamp,55.51,LAMP-MATTE-49-1,7.12,fulfilled
+,,,,,,,,,,,,,,,,,4,Stoneware Plate,38.54,PLATE-STONE-98-2,4.56,fulfilled
+,,,,,,,,,,,,,,,,,1,Cashmere Throw,82.76,THROW-CASH-22-3,0.00,fulfilled
+,,,,,,,,,,,,,,,,,4,Stoneware Plate,37.76,PLATE-STONE-93-4,2.97,fulfilled
+5001089,#1089,lina.weber.5001089@example.com,refunded,fulfilled,2026-04-04T18:57:00.000Z,2026-04-04T17:27:00.000Z,EUR,167.38,0.39,31.80,199.57,0.00,pos,Lina Weber,Vienna,AT,2,Stoneware Plate,32.65,PLATE-STONE-74-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,2,Enamel Mixing Bowl,28.86,BOWL-ENAMEL-31-2,7.72,fulfilled
+,,,,,,,,,,,,,,,,,1,Ceramic Pour-Over Set,44.36,POUR-CERAMIC-22-3,0.00,fulfilled
+5001090,#1090,sofia.novak.5001090@example.com,paid,unfulfilled,2026-04-17T14:02:00.000Z,2026-04-17T13:00:00.000Z,CZK,111.84,11.58,23.49,139.05,7.86,marketplace,Sofia Novak,Prague,CZ,3,Enamel Mixing Bowl,37.28,BOWL-ENAMEL-43-1,0.00,unfulfilled
+5001091,#1091,lina.weber.5001091@example.com,authorized,unfulfilled,2026-01-28T08:17:00.000Z,2026-01-28T08:00:00.000Z,EUR,308.24,7.22,58.57,366.20,7.83,marketplace,Lina Weber,Vienna,AT,4,Recycled Wool Blanket,77.06,BLANKET-WOOL-16-1,0.00,unfulfilled
+5001092,#1092,ben.carter.5001092@example.com,authorized,processing,2026-02-11T21:21:00.000Z,2026-02-11T18:24:00.000Z,GBP,46.76,7.31,9.35,63.42,0.00,marketplace,Ben Carter,Manchester,GB,4,Glass Storage Jar,11.69,JAR-GLASS-41-1,0.00,processing
+5001093,#1093,lina.weber.5001093@example.com,authorized,fulfilled,,2026-02-24T17:11:00.000Z,EUR,279.60,4.94,53.12,337.66,0.00,shopify_draft_order,Lina Weber,Vienna,AT,4,Recycled Wool Blanket,69.90,BLANKET-WOOL-42-1,0.00,fulfilled
+5001094,#1094,olivia.reed.5001094@example.com,authorized,shipped,2026-01-23T11:17:00.000Z,2026-01-23T09:55:00.000Z,EUR,122.76,6.63,23.32,140.83,11.88,pos,Olivia Reed,Berlin,DE,4,Wool Cushion Cover,30.69,CUSHION-WOOL-22-1,6.40,shipped
+5001095,#1095,ava.shah.5001095@example.com,authorized,processing,2026-03-29T23:03:00.000Z,2026-03-29T21:31:00.000Z,EUR,32.58,11.29,6.19,46.84,3.22,marketplace,Ava Shah,Cologne,DE,2,Glass Storage Jar,16.29,JAR-GLASS-13-1,0.00,processing
+5001096,#1096,lina.weber.5001096@example.com,refunded,shipped,2026-02-08T20:00:00.000Z,2026-02-08T17:26:00.000Z,EUR,95.55,8.07,18.15,121.77,0.00,shopify_draft_order,Lina Weber,Vienna,AT,3,Stoneware Plate,31.85,PLATE-STONE-07-1,0.00,shipped
+5001097,#1097,ava.shah.5001097@example.com,refunded,unfulfilled,2026-03-05T13:09:00.000Z,2026-03-05T12:34:00.000Z,EUR,215.04,1.49,40.86,257.39,0.00,shopify_draft_order,Ava Shah,Cologne,DE,4,Matte Table Lamp,53.76,LAMP-MATTE-22-1,0.00,unfulfilled
+5001098,#1098,mia.foster.5001098@example.com,refunded,shipped,2026-02-05T12:04:00.000Z,2026-02-05T10:46:00.000Z,GBP,154.72,6.69,30.94,192.35,0.00,web,Mia Foster,London,GB,4,Enamel Mixing Bowl,38.68,BOWL-ENAMEL-81-1,0.00,shipped
+5001099,#1099,jonas.keller.5001099@example.com,authorized,fulfilled,2026-03-28T18:29:00.000Z,2026-03-28T16:03:00.000Z,CHF,151.78,6.66,12.29,170.73,0.00,marketplace,Jonas Keller,Zurich,CH,2,Wool Cushion Cover,38.77,CUSHION-WOOL-33-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,4,Glass Storage Jar,18.56,JAR-GLASS-26-2,0.00,fulfilled
+5001100,#1100,ben.carter.5001100@example.com,pending,processing,,2026-03-05T13:37:00.000Z,GBP,64.76,11.51,12.95,89.22,0.00,pos,Ben Carter,Manchester,GB,1,Bamboo Bath Towel,21.44,TOWEL-BAMBOO-77-1,0.00,processing
+,,,,,,,,,,,,,,,,,4,Steel Wall Hook,10.83,HOOK-STEEL-52-2,0.00,processing
+5001101,#1101,lucas.meyer.5001101@example.com,pending,fulfilled,2026-03-24T14:15:00.000Z,2026-03-24T12:41:00.000Z,EUR,613.53,3.57,116.57,733.67,0.00,marketplace,Lucas Meyer,Hamburg,DE,3,Matte Table Lamp,60.35,LAMP-MATTE-85-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,2,Steel Wall Hook,19.56,HOOK-STEEL-21-2,0.00,fulfilled
+,,,,,,,,,,,,,,,,,4,Organic Cotton Sheet Set,86.75,SHEET-COTTON-49-3,0.00,fulfilled
+,,,,,,,,,,,,,,,,,4,Glass Storage Jar,11.59,JAR-GLASS-60-4,0.00,fulfilled
+5001102,#1102,noah.park.5001102@example.com,pending,processing,2026-03-15T09:42:00.000Z,2026-03-15T08:40:00.000Z,USD,171.32,11.77,14.13,197.22,0.00,web,Noah Park,Austin,US,2,Matte Table Lamp,56.37,LAMP-MATTE-97-1,0.00,processing
+,,,,,,,,,,,,,,,,,1,Matte Table Lamp,58.58,LAMP-MATTE-46-2,0.00,processing
+5001103,#1103,ava.shah.5001103@example.com,pending,fulfilled,2026-01-24T21:55:00.000Z,2026-01-24T21:34:00.000Z,EUR,126.75,8.60,24.08,144.55,14.88,shopify_draft_order,Ava Shah,Cologne,DE,3,Ceramic Pour-Over Set,42.25,POUR-CERAMIC-40-1,0.00,fulfilled
+5001104,#1104,leo.martin.5001104@example.com,pending,partial,2026-02-05T09:23:00.000Z,2026-02-05T08:59:00.000Z,EUR,85.06,6.06,16.16,107.28,0.00,marketplace,Leo Martin,Munich,DE,2,Stoneware Plate,42.53,PLATE-STONE-58-1,0.00,partial
+5001105,#1105,ben.carter.5001105@example.com,authorized,partial,2026-01-13T18:56:00.000Z,2026-01-13T16:22:00.000Z,GBP,254.40,4.62,50.88,300.03,9.87,marketplace,Ben Carter,Manchester,GB,3,Matte Table Lamp,55.74,LAMP-MATTE-68-1,0.00,partial
+,,,,,,,,,,,,,,,,,3,Glass Storage Jar,23.00,JAR-GLASS-57-2,0.00,partial
+,,,,,,,,,,,,,,,,,1,Serving Bowl,18.18,BOWL-SERVE-69-3,0.00,partial
+5001106,#1106,leo.martin.5001106@example.com,authorized,fulfilled,2026-02-05T13:00:00.000Z,2026-02-05T12:30:00.000Z,EUR,223.58,1.53,42.48,267.59,0.00,web,Leo Martin,Munich,DE,4,Wool Cushion Cover,41.30,CUSHION-WOOL-74-1,0.00,fulfilled
+,,,,,,,,,,,,,,,,,1,Matte Table Lamp,58.38,LAMP-MATTE-09-2,0.00,fulfilled
+5001107,#1107,ben.carter.5001107@example.com,paid,unfulfilled,2026-03-06T15:04:00.000Z,2026-03-06T12:21:00.000Z,GBP,61.11,11.65,12.22,81.14,3.84,web,Ben Carter,Manchester,GB,1,Matte Table Lamp,61.11,LAMP-MATTE-79-1,0.00,unfulfilled
+5001108,#1108,lina.weber.5001108@example.com,paid,shipped,2026-03-23T12:59:00.000Z,2026-03-23T12:06:00.000Z,EUR,84.66,4.08,16.09,104.83,0.00,marketplace,Lina Weber,Vienna,AT,2,Wool Cushion Cover,34.19,CUSHION-WOOL-32-1,0.00,shipped
+,,,,,,,,,,,,,,,,,1,Steel Wall Hook,16.28,HOOK-STEEL-41-2,0.00,shipped
+5001109,#1109,leo.martin.5001109@example.com,paid,processing,2026-03-13T15:48:00.000Z,2026-03-13T13:42:00.000Z,EUR,191.16,11.85,36.32,239.33,0.00,web,Leo Martin,Munich,DE,2,Walnut Desk Organizer,44.00,DESK-WALNUT-90-1,0.00,processing
+,,,,,,,,,,,,,,,,,4,Linen Lamp Shade,25.79,SHADE-LINEN-04-2,0.00,processing
+5001110,#1110,sofia.novak.5001110@example.com,paid,partial,2026-02-15T20:31:00.000Z,2026-02-15T17:41:00.000Z,CZK,508.42,8.70,106.77,611.40,12.49,shopify_draft_order,Sofia Novak,Prague,CZ,2,Linen Lamp Shade,34.76,SHADE-LINEN-36-1,0.00,partial
+,,,,,,,,,,,,,,,,,4,Organic Cotton Sheet Set,97.38,SHEET-COTTON-06-2,0.00,partial
+,,,,,,,,,,,,,,,,,2,Serving Bowl,24.69,BOWL-SERVE-09-3,0.00,partial
+5001111,#1111,amara.okafor.5001111@example.com,refunded,partial,2026-01-22T17:26:00.000Z,2026-01-22T16:25:00.000Z,EUR,260.55,0.18,49.50,300.22,10.01,marketplace,Amara Okafor,Dublin,IE,2,Matte Table Lamp,61.59,LAMP-MATTE-62-1,0.00,partial
+,,,,,,,,,,,,,,,,,3,Ceramic Pour-Over Set,45.79,POUR-CERAMIC-53-2,0.00,partial
+5001112,#1112,leo.martin.5001112@example.com,refunded,partial,2026-04-01T17:02:00.000Z,2026-04-01T15:09:00.000Z,EUR,110.76,7.11,21.04,123.77,15.14,pos,Leo Martin,Munich,DE,4,Bamboo Bath Towel,27.69,TOWEL-BAMBOO-93-1,0.00,partial
+5001113,#1113,sofia.novak.5001113@example.com,authorized,processing,,2026-01-14T18:00:00.000Z,CZK,217.45,8.99,45.66,255.86,16.24,web,Sofia Novak,Prague,CZ,2,Walnut Desk Organizer,51.02,DESK-WALNUT-17-1,0.00,processing
+,,,,,,,,,,,,,,,,,3,Stoneware Plate,38.47,PLATE-STONE-56-2,0.00,processing
+5001114,#1114,noah.park.5001114@example.com,pending,shipped,2026-01-24T09:19:00.000Z,2026-01-24T09:00:00.000Z,USD,356.89,3.07,29.44,389.40,0.00,marketplace,Noah Park,Austin,US,2,Enamel Mixing Bowl,31.34,BOWL-ENAMEL-92-1,6.11,shipped
+,,,,,,,,,,,,,,,,,3,Cashmere Throw,80.89,THROW-CASH-35-2,0.00,shipped
+,,,,,,,,,,,,,,,,,3,Glass Storage Jar,17.18,JAR-GLASS-59-3,0.00,shipped
+5001115,#1115,emma.rossi.5001115@example.com,refunded,unfulfilled,,2026-02-10T19:28:00.000Z,EUR,213.23,10.72,40.51,264.46,0.00,web,Emma Rossi,Milan,IT,1,Walnut Desk Organizer,54.01,DESK-WALNUT-90-1,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,2,Walnut Desk Organizer,43.94,DESK-WALNUT-90-2,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,3,Bamboo Bath Towel,23.78,TOWEL-BAMBOO-06-3,0.00,unfulfilled
+5001116,#1116,jonas.keller.5001116@example.com,authorized,processing,2026-03-19T12:29:00.000Z,2026-03-19T09:43:00.000Z,CHF,53.16,1.79,4.31,59.26,0.00,shopify_draft_order,Jonas Keller,Zurich,CH,2,Linen Lamp Shade,26.58,SHADE-LINEN-71-1,0.00,processing
+5001117,#1117,ben.carter.5001117@example.com,pending,shipped,2026-04-25T17:12:00.000Z,2026-04-25T15:31:00.000Z,GBP,288.75,12.38,57.75,358.88,0.00,pos,Ben Carter,Manchester,GB,1,Walnut Desk Organizer,48.91,DESK-WALNUT-17-1,0.00,shipped
+,,,,,,,,,,,,,,,,,3,Serving Bowl,30.16,BOWL-SERVE-27-2,4.02,shipped
+,,,,,,,,,,,,,,,,,3,Linen Lamp Shade,31.48,SHADE-LINEN-18-3,0.00,shipped
+,,,,,,,,,,,,,,,,,4,Glass Storage Jar,13.73,JAR-GLASS-55-4,0.00,shipped
+5001118,#1118,ava.shah.5001118@example.com,refunded,fulfilled,,2026-04-22T21:46:00.000Z,EUR,46.48,5.25,8.83,60.56,0.00,pos,Ava Shah,Cologne,DE,1,Ceramic Pour-Over Set,46.48,POUR-CERAMIC-36-1,3.10,fulfilled
+5001119,#1119,ben.carter.5001119@example.com,pending,partial,2026-01-20T17:41:00.000Z,2026-01-20T16:12:00.000Z,GBP,215.69,11.65,43.14,270.48,0.00,marketplace,Ben Carter,Manchester,GB,1,Cashmere Throw,79.47,THROW-CASH-32-1,0.00,partial
+,,,,,,,,,,,,,,,,,2,Linen Lamp Shade,34.45,SHADE-LINEN-14-2,0.00,partial
+,,,,,,,,,,,,,,,,,3,Serving Bowl,22.44,BOWL-SERVE-46-3,3.10,partial
+5001120,#1120,ava.shah.5001120@example.com,pending,fulfilled,2026-03-31T10:52:00.000Z,2026-03-31T10:48:00.000Z,EUR,130.00,12.38,24.70,167.08,0.00,web,Ava Shah,Cologne,DE,4,Stoneware Plate,32.50,PLATE-STONE-77-1,0.00,fulfilled
+5001121,#1121,mia.foster.5001121@example.com,authorized,processing,,2026-04-29T09:54:00.000Z,GBP,568.44,11.87,113.69,694.00,0.00,shopify_draft_order,Mia Foster,London,GB,3,Organic Cotton Sheet Set,95.72,SHEET-COTTON-32-1,0.00,processing
+,,,,,,,,,,,,,,,,,4,Oak Serving Tray,70.32,TRAY-OAK-97-2,0.00,processing
+5001122,#1122,jonas.keller.5001122@example.com,authorized,unfulfilled,2026-04-08T08:12:00.000Z,2026-04-08T07:45:00.000Z,CHF,35.12,0.25,2.84,38.21,0.00,web,Jonas Keller,Zurich,CH,2,Brass Candle Holder,17.56,CANDLE-BRASS-31-1,0.00,unfulfilled
+5001123,#1123,leo.martin.5001123@example.com,paid,shipped,2026-01-28T16:56:00.000Z,2026-01-28T15:57:00.000Z,EUR,452.85,3.29,86.04,536.83,5.35,pos,Leo Martin,Munich,DE,4,Serving Bowl,22.97,BOWL-SERVE-75-1,4.67,shipped
+,,,,,,,,,,,,,,,,,3,Cashmere Throw,74.96,THROW-CASH-83-2,2.43,shipped
+,,,,,,,,,,,,,,,,,3,Glass Storage Jar,18.42,JAR-GLASS-85-3,0.00,shipped
+,,,,,,,,,,,,,,,,,1,Cashmere Throw,80.83,THROW-CASH-02-4,0.00,shipped
+5001124,#1124,olivia.reed.5001124@example.com,pending,unfulfilled,,2026-01-26T11:39:00.000Z,EUR,306.03,2.61,58.15,366.79,0.00,marketplace,Olivia Reed,Berlin,DE,1,Matte Table Lamp,58.73,LAMP-MATTE-38-1,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,2,Wool Cushion Cover,37.78,CUSHION-WOOL-78-2,0.00,unfulfilled
+,,,,,,,,,,,,,,,,,2,Cashmere Throw,85.87,THROW-CASH-39-3,0.00,unfulfilled

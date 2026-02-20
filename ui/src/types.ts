@@ -165,7 +165,6 @@ export interface PreparedImportSource {
   inputKind: InputKind;
   fileName: string;
   recordCount: number;
-  previewRows: SourceRecord[];
   content?: string;
   records?: SourceRecord[];
 }
