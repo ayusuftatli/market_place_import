@@ -42,9 +42,6 @@ import type {
   TemplateSummary,
 } from "./types";
 
-const HEADER_IMAGE =
-  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80";
-
 const orderColumns = [
   "sourceOrderId",
   "salesChannel",
@@ -396,17 +393,11 @@ export function App() {
       <header className="masthead">
         <div className="masthead-copy">
           <p className="eyebrow">Marketplace Import Portal</p>
-          <h1>Review Amazon, Shopify, and spreadsheet exports before they land.</h1>
-          <p>
-            Choose a source, drop in the latest order file, and inspect clean
-            order summaries with line-level drill-down.
-          </p>
           <div className="status-strip" aria-live="polite">
             <span>{loadingLabel || message || "Ready"}</span>
             {error ? <strong className="error-text">{error}</strong> : null}
           </div>
         </div>
-        <img className="masthead-image" src={HEADER_IMAGE} alt="Analyst reviewing order exports" />
       </header>
 
       <section className="template-band">

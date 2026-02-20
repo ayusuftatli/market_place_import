@@ -65,13 +65,69 @@ npm run build
 npm test
 ```
 
+### Connect to MongoDB Atlas
+
+This repo connects to MongoDB whenever [`DATA_STORE`](src/server.ts:8) is not set to `memory`. The server reads [`MONGODB_URI`](src/shared/database.ts:3) from your environment and fails fast if it is missing.
+
+1. In Atlas, open your cluster and copy the **Drivers** connection string for Node.js.
+2. Replace `<username>`, `<password>`, and, if needed, the default database name in the URI.
+3. Make sure your Atlas database user has read/write access.
+4. Make sure your current IP address is allowed in Atlas **Network Access**.
+5. Create a local [`.env`](.env) file in the project root:
+
+```bash
+cp .env.example .env
+```
+
+Then update [`.env`](.env) so it looks like this:
+
+```dotenv
+PORT=3000
+MONGODB_URI=mongodb+srv://YOUR_USERNAME:YOUR_PASSWORD@YOUR-CLUSTER.mongodb.net/order_import_platform?retryWrites=true&w=majority&appName=Cluster0
+```
+
+Notes for this repo:
+
+- Do **not** set [`DATA_STORE=memory`](README.md:71) when you want Atlas.
+- The database name can be kept in the URI path, such as `order_import_platform`.
+- [`.env`](.gitignore:21) is already ignored by git.
+- If your password contains reserved URL characters such as `@`, `:`, `/`, or `#`, URL-encode it before placing it in the connection string.
+
+Start the API against Atlas:
+
+```bash
+npm run dev:api
+```
+
+For the split workflow, run the UI separately:
+
+```bash
+npm run dev:api
+npm run dev:ui
+```
+
+If you currently have the in-memory server running, stop that process first and restart without the `DATA_STORE=memory` prefix.
+
+Expected behavior:
+
+- the API starts without the missing-URI error from [`connectToDatabase()`](src/shared/database.ts:3)
+- imported orders persist in MongoDB instead of memory
+- restarting the API does not remove previously imported records
+
+Common Atlas issues:
+
+- `MONGODB_URI is required...`: [`.env`](.env) is missing or not loaded
+- authentication failed: username or password in the URI is wrong
+- IP/network timeout: your current machine is not allowed in Atlas **Network Access**
+- DNS or SRV error: use the full Atlas `mongodb+srv://` string copied from Atlas Drivers
+
 For a non-persistent local demo:
 
 ```bash
 DATA_STORE=memory npm run dev
 ```
 
-The API listens on `http://localhost:3000` and the built UI is served at `http://localhost:3000/ui`.
+The API listens on `http://localhost:3000` and the built UI is served directly from `http://localhost:3000/`.
 
 For a split local workflow:
 

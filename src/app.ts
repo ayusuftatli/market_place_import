@@ -48,27 +48,33 @@ export function createApp(options: CreateAppOptions = {}) {
 export const app = createApp();
 
 function mountUi(app: Express, uiDistPath: string | false | undefined): void {
-  app.get("/", (_req, res) => {
-    res.redirect("/ui");
-  });
-
   const resolvedUiDistPath = resolveUiDistPath(uiDistPath);
   if (!resolvedUiDistPath) {
     return;
   }
 
-  app.use("/ui", express.static(resolvedUiDistPath, { index: false }));
-  app.get(/^\/ui(?:\/.*)?$/, (_req, res, next) => {
-    try {
-      res
-        .type("html")
-        .send(
-          fs.readFileSync(path.join(resolvedUiDistPath, "index.html"), "utf8"),
-        );
-    } catch (error) {
-      next(error);
-    }
-  });
+  const staticOptions = { index: false, redirect: false };
+  app.use("/ui", express.static(resolvedUiDistPath, staticOptions));
+  app.use(express.static(resolvedUiDistPath, staticOptions));
+  app.get(
+    /^(?!\/(?:health|templates|imports|orders)(?:\/|$)).*/,
+    (req, res, next) => {
+      if (path.extname(req.path)) {
+        res.status(404).end();
+        return;
+      }
+
+      try {
+        res
+          .type("html")
+          .send(
+            fs.readFileSync(path.join(resolvedUiDistPath, "index.html"), "utf8"),
+          );
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
 }
 
 function resolveUiDistPath(
