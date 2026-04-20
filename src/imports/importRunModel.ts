@@ -11,6 +11,7 @@ const importRunSchema = new Schema(
     totalRecords: { type: Number, required: true },
     validRecords: { type: Number, required: true },
     invalidRecords: { type: Number, required: true },
+    duplicateRecords: { type: Number, required: true, default: 0 },
     storedOrderCount: { type: Number, required: true },
     storedLineCount: { type: Number, required: true },
     errors: { type: [Schema.Types.Mixed], default: [] },

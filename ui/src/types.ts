@@ -134,6 +134,7 @@ export interface ImportRun {
   totalRecords: number;
   validRecords: number;
   invalidRecords: number;
+  duplicateRecords: number;
   storedOrderCount: number;
   storedLineCount: number;
   errors: RowValidationError[];
@@ -148,6 +149,7 @@ export interface ImportResult {
   totalRecords: number;
   validRecords: number;
   invalidRecords: number;
+  duplicateRecords: number;
   storedOrderCount: number;
   storedLineCount: number;
   errors: RowValidationError[];

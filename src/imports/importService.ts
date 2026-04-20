@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { DataStore } from "../shared/dataStore";
 import type {
   CreateOrderLineInput,
@@ -13,7 +14,10 @@ import type {
   RowValidationError,
 } from "../shared/types";
 import { applyTemplatePreprocessing, parseSourceInput } from "./sourceParsers";
-import { mapAndTransformRecord, isMissing } from "../transformation/transformer";
+import {
+  mapAndTransformRecord,
+  isMissing,
+} from "../transformation/transformer";
 import { createRecordValidator } from "../validation/schemaGenerator";
 import { resolveTemplate } from "../templates/templateService";
 import { badRequest } from "../shared/errors";
@@ -22,12 +26,21 @@ interface ValidLineRecord {
   rowNumber: number;
   normalized: Record<string, unknown>;
   sourceRecord: Record<string, unknown>;
+  rowFingerprint: string;
 }
 
 interface RolledUpOrder {
   firstRowNumber: number;
   summary: OrderSummaryFields;
   lines: ValidLineRecord[];
+}
+
+interface ProcessedRecords {
+  validRecords: number;
+  invalidRecords: number;
+  duplicateRecords: number;
+  errors: RowValidationError[];
+  orders: RolledUpOrder[];
 }
 
 const publicLineFields = [
@@ -57,7 +70,11 @@ export async function runImportPipeline(
   const template = await resolveTemplate(store, input.templateKey);
   const parsed = parseSourceInput(input);
   const sourceRecords = applyTemplatePreprocessing(parsed.records, template);
-  const processed = processSourceRecords(template, sourceRecords);
+  const processed = await removePreviouslyImportedRows(
+    store,
+    template,
+    processSourceRecords(template, sourceRecords),
+  );
   const allowPartialSuccess = template.settings?.allowPartialSuccess ?? true;
   const shouldStore =
     mode === "commit" &&
@@ -88,6 +105,7 @@ export async function runImportPipeline(
     totalRecords: sourceRecords.length,
     validRecords: processed.validRecords,
     invalidRecords: processed.invalidRecords,
+    duplicateRecords: processed.duplicateRecords,
     storedOrderCount,
     storedLineCount,
     errors: processed.errors,
@@ -111,6 +129,7 @@ export async function runImportPipeline(
         order.lines.map<CreateOrderLineInput>((line) => ({
           importRunId: run.id,
           orderId: orderIds.get(order.summary.sourceOrderId) ?? "",
+          rowFingerprint: line.rowFingerprint,
           ...toOrderLineFields(line.normalized),
           sourceRecord: line.sourceRecord,
           rowNumber: line.rowNumber,
@@ -125,6 +144,7 @@ export async function runImportPipeline(
     totalRecords: sourceRecords.length,
     validRecords: processed.validRecords,
     invalidRecords: processed.invalidRecords,
+    duplicateRecords: processed.duplicateRecords,
     storedOrderCount,
     storedLineCount,
     errors: processed.errors,
@@ -136,19 +156,15 @@ export async function runImportPipeline(
 function processSourceRecords(
   template: MarketplaceTemplate,
   sourceRecords: Array<Record<string, unknown>>,
-): {
-  validRecords: number;
-  invalidRecords: number;
-  errors: RowValidationError[];
-  orders: RolledUpOrder[];
-} {
+): ProcessedRecords {
   const maxErrors = template.settings?.maxErrors ?? 50;
   const lineValidator = createRecordValidator(template.lineFields);
-  const orderValidator = createRecordValidator(toOrderFieldConfigMap(template));
   const errors: RowValidationError[] = [];
   const validLines: ValidLineRecord[] = [];
+  const seenLineFingerprints = new Map<string, number>();
   let validRecords = 0;
   let invalidRecords = 0;
+  let duplicateRecords = 0;
 
   for (const [index, sourceRecord] of sourceRecords.entries()) {
     const rowNumber = index + 1;
@@ -168,21 +184,121 @@ function processSourceRecords(
       continue;
     }
 
+    const rowFingerprint = createLineRowFingerprint(finalized);
+    const firstDuplicateRow = seenLineFingerprints.get(rowFingerprint);
+    if (firstDuplicateRow !== undefined) {
+      invalidRecords += 1;
+      duplicateRecords += 1;
+      pushDuplicateRowError(
+        errors,
+        maxErrors,
+        rowNumber,
+        `Duplicate row matches row ${firstDuplicateRow} in this import.`,
+        finalized,
+      );
+      continue;
+    }
+
+    seenLineFingerprints.set(rowFingerprint, rowNumber);
     validRecords += 1;
     validLines.push({
       rowNumber,
       normalized: finalized,
       sourceRecord: transformed.sourceRecord,
+      rowFingerprint,
     });
   }
 
-  const rolledUpOrders = rollUpOrders(template, validLines);
+  const validOrders = validateRolledUpOrders(
+    template,
+    rollUpOrders(template, validLines),
+    errors,
+    maxErrors,
+  );
+
+  return {
+    validRecords,
+    invalidRecords,
+    duplicateRecords,
+    errors,
+    orders: validOrders,
+  };
+}
+
+async function removePreviouslyImportedRows(
+  store: DataStore,
+  template: MarketplaceTemplate,
+  processed: ProcessedRecords,
+): Promise<ProcessedRecords> {
+  const allLines = processed.orders.flatMap((order) => order.lines);
+  if (allLines.length === 0) {
+    return processed;
+  }
+
+  const existingFingerprints =
+    await store.orderLines.findExistingRowFingerprints(
+      allLines.map((line) => ({
+        rowFingerprint: line.rowFingerprint,
+        fields: toOrderLineFields(line.normalized),
+      })),
+    );
+
+  if (existingFingerprints.size === 0) {
+    return processed;
+  }
+
+  const maxErrors = template.settings?.maxErrors ?? 50;
+  const errors = [...processed.errors];
+  const newLines: ValidLineRecord[] = [];
+  let duplicateRecords = 0;
+
+  for (const line of allLines) {
+    if (existingFingerprints.has(line.rowFingerprint)) {
+      duplicateRecords += 1;
+      pushDuplicateRowError(
+        errors,
+        maxErrors,
+        line.rowNumber,
+        "Duplicate row already exists in stored orders.",
+        line.normalized,
+      );
+      continue;
+    }
+
+    newLines.push(line);
+  }
+
+  return {
+    validRecords: processed.validRecords - duplicateRecords,
+    invalidRecords: processed.invalidRecords + duplicateRecords,
+    duplicateRecords: processed.duplicateRecords + duplicateRecords,
+    errors,
+    orders: validateRolledUpOrders(
+      template,
+      rollUpOrders(template, newLines),
+      errors,
+      maxErrors,
+    ),
+  };
+}
+
+function validateRolledUpOrders(
+  template: MarketplaceTemplate,
+  rolledUpOrders: RolledUpOrder[],
+  errors: RowValidationError[],
+  maxErrors: number,
+): RolledUpOrder[] {
+  const orderValidator = createRecordValidator(toOrderFieldConfigMap(template));
   const validOrders: RolledUpOrder[] = [];
 
   for (const order of rolledUpOrders) {
-    const validation = orderValidator(order.summary as unknown as Record<string, unknown>, order.firstRowNumber, {
-      maxErrors: Math.max(maxErrors - errors.length, 0),
-    });
+    const validation = orderValidator(
+      order.summary as unknown as Record<string, unknown>,
+      order.firstRowNumber,
+      {
+        maxErrors: Math.max(maxErrors - errors.length, 0),
+      },
+    );
 
     if (!validation.valid) {
       errors.push(...validation.errors);
@@ -192,12 +308,7 @@ function processSourceRecords(
     validOrders.push(order);
   }
 
-  return {
-    validRecords,
-    invalidRecords,
-    errors,
-    orders: validOrders,
-  };
+  return validOrders;
 }
 
 function rollUpOrders(
@@ -228,9 +339,7 @@ function rollUpOrders(
 
   return [...grouped.values()].map((group) => ({
     ...group,
-    summary: finalizeOrderSummary(
-      computeOrderSummary(template, group.lines),
-    ),
+    summary: finalizeOrderSummary(computeOrderSummary(template, group.lines)),
   }));
 }
 
@@ -240,7 +349,9 @@ function computeOrderSummary(
 ): OrderSummaryFields {
   const summary = {} as Record<string, unknown>;
 
-  for (const [fieldName, config] of Object.entries(template.orderRollup.fields)) {
+  for (const [fieldName, config] of Object.entries(
+    template.orderRollup.fields,
+  )) {
     const value = computeRollupValue(lines, config);
     if (value !== undefined) {
       summary[fieldName] = value;
@@ -283,7 +394,9 @@ function computeRollupValue(
   }
 }
 
-function finalizeLineRecord(record: Record<string, unknown>): Record<string, unknown> {
+function finalizeLineRecord(
+  record: Record<string, unknown>,
+): Record<string, unknown> {
   const next = { ...record };
 
   if (!isMissing(next.quantity)) {
@@ -293,7 +406,8 @@ function finalizeLineRecord(record: Record<string, unknown>): Record<string, unk
   next.lineTaxAmount =
     numberValue(next.lineTaxAmount) + numberValue(next.shippingTaxAmount);
   next.lineDiscountAmount =
-    numberValue(next.lineDiscountAmount) + numberValue(next.shippingDiscountAmount);
+    numberValue(next.lineDiscountAmount) +
+    numberValue(next.shippingDiscountAmount);
   next.lineShippingAmount = numberValue(next.lineShippingAmount);
 
   if (isMissing(next.lineSubtotalAmount) && !isMissing(next.unitPriceAmount)) {
@@ -323,7 +437,10 @@ function finalizeLineRecord(record: Record<string, unknown>): Record<string, unk
 function finalizeOrderSummary(summary: OrderSummaryFields): OrderSummaryFields {
   return {
     ...summary,
-    salesChannel: typeof summary.salesChannel === "string" ? summary.salesChannel : "unknown",
+    salesChannel:
+      typeof summary.salesChannel === "string"
+        ? summary.salesChannel
+        : "unknown",
     currency: typeof summary.currency === "string" ? summary.currency : "USD",
     subtotalAmount: numberValue(summary.subtotalAmount),
     shippingAmount: numberValue(summary.shippingAmount),
@@ -345,7 +462,9 @@ function toOrderFieldConfigMap(
 ): Record<string, FieldConfig> {
   const fields: Record<string, FieldConfig> = {};
 
-  for (const [fieldName, config] of Object.entries(template.orderRollup.fields)) {
+  for (const [fieldName, config] of Object.entries(
+    template.orderRollup.fields,
+  )) {
     fields[fieldName] = {
       type: config.type ?? inferFieldType(config.value),
       required: config.required,
@@ -370,6 +489,64 @@ function inferFieldType(value: unknown): FieldConfig["type"] {
   }
 
   return "string";
+}
+
+function createLineRowFingerprint(record: Record<string, unknown>): string {
+  return createHash("sha256")
+    .update("order-line-row-v1")
+    .update(stableStringify(toOrderLineFields(record)))
+    .digest("hex");
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  }
+
+  if (value !== null && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, nestedValue]) => nestedValue !== undefined)
+      .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
+
+    return `{${entries
+      .map(
+        ([key, nestedValue]) =>
+          `${JSON.stringify(key)}:${stableStringify(nestedValue)}`,
+      )
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value) ?? "undefined";
+}
+
+function pushDuplicateRowError(
+  errors: RowValidationError[],
+  maxErrors: number,
+  row: number,
+  message: string,
+  record: Record<string, unknown>,
+): void {
+  if (errors.length >= maxErrors) {
+    return;
+  }
+
+  errors.push({
+    row,
+    message,
+    value: summarizeDuplicateRow(record),
+  });
+}
+
+function summarizeDuplicateRow(
+  record: Record<string, unknown>,
+): Record<string, unknown> {
+  const line = toOrderLineFields(record);
+  return {
+    sourceOrderId: line.sourceOrderId,
+    sourceLineId: line.sourceLineId,
+    sku: line.sku,
+    productTitle: line.productTitle,
+  };
 }
 
 function toOrderLineFields(record: Record<string, unknown>): OrderLineFields {

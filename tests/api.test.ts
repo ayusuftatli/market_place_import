@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createTestContext, amazonTsv, genericCsv, genericMixedJson, shopifyCsv } from "./helpers";
+import {
+  createTestContext,
+  amazonTsv,
+  genericCsv,
+  genericJson,
+  genericMixedJson,
+  shopifyCsv,
+} from "./helpers";
 import { requestApp } from "./httpTestClient";
 
 describe("marketplace import API", () => {
@@ -150,7 +157,11 @@ settings:
     });
     expect(saved.body.template.description).toBe("Custom agency flavor");
 
-    const restored = await requestApp(app, "DELETE", "/templates/generic/override");
+    const restored = await requestApp(
+      app,
+      "DELETE",
+      "/templates/generic/override",
+    );
     expect(restored.status).toBe(200);
     expect(restored.body.override).toBeNull();
   });
@@ -250,18 +261,102 @@ settings:
     expect(imports.status).toBe(200);
     expect(imports.body.imports).toHaveLength(1);
 
-    const detail = await requestApp(app, "GET", `/imports/${commit.body.importRunId}`);
+    const detail = await requestApp(
+      app,
+      "GET",
+      `/imports/${commit.body.importRunId}`,
+    );
     expect(detail.status).toBe(200);
     expect(detail.body.orders).toHaveLength(2);
 
     const firstOrder = detail.body.orders[0];
-    const lines = await requestApp(app, "GET", `/orders/${firstOrder.id}/lines`);
+    const lines = await requestApp(
+      app,
+      "GET",
+      `/orders/${firstOrder.id}/lines`,
+    );
     expect(lines.status).toBe(200);
     expect(lines.body.lines.length).toBeGreaterThan(0);
 
-    const storedOrders = await store.orders.list({ importRunId: commit.body.importRunId });
+    const storedOrders = await store.orders.list({
+      importRunId: commit.body.importRunId,
+    });
     expect(storedOrders).toHaveLength(2);
-    await expect(store.orderLines.count({ importRunId: commit.body.importRunId })).resolves.toBe(3);
+    await expect(
+      store.orderLines.count({ importRunId: commit.body.importRunId }),
+    ).resolves.toBe(3);
+  });
+
+  it("skips exact duplicate rows in the same import", async () => {
+    const { app, store } = createTestContext();
+
+    const commit = await requestApp(app, "POST", "/imports", {
+      templateKey: "generic",
+      inputKind: "records",
+      fileName: "generic-duplicates.json",
+      records: [genericJson[0], genericJson[0], genericJson[1]],
+    });
+
+    expect(commit.status).toBe(201);
+    expect(commit.body).toMatchObject({
+      totalRecords: 3,
+      validRecords: 2,
+      invalidRecords: 1,
+      duplicateRecords: 1,
+      storedOrderCount: 2,
+      storedLineCount: 2,
+    });
+    expect(commit.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          row: 2,
+          message: expect.stringContaining("Duplicate row"),
+        }),
+      ]),
+    );
+    await expect(
+      store.orderLines.count({ importRunId: commit.body.importRunId }),
+    ).resolves.toBe(2);
+  });
+
+  it("skips exact rows that were already imported", async () => {
+    const { app, store } = createTestContext();
+
+    const firstCommit = await requestApp(app, "POST", "/imports", {
+      templateKey: "generic",
+      inputKind: "delimited",
+      fileName: "generic-marketplace-orders.csv",
+      content: genericCsv,
+    });
+    expect(firstCommit.status).toBe(201);
+
+    const secondCommit = await requestApp(app, "POST", "/imports", {
+      templateKey: "generic",
+      inputKind: "delimited",
+      fileName: "generic-marketplace-orders.csv",
+      content: genericCsv,
+    });
+
+    expect(secondCommit.status).toBe(201);
+    expect(secondCommit.body).toMatchObject({
+      totalRecords: 3,
+      validRecords: 0,
+      invalidRecords: 3,
+      duplicateRecords: 3,
+      storedOrderCount: 0,
+      storedLineCount: 0,
+      orderPreview: [],
+      linePreview: [],
+    });
+    expect(secondCommit.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          row: 1,
+          message: "Duplicate row already exists in stored orders.",
+        }),
+      ]),
+    );
+    await expect(store.orderLines.count()).resolves.toBe(3);
   });
 
   it("commits valid rows when partial success is allowed", async () => {

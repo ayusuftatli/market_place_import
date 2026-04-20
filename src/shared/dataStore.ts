@@ -10,6 +10,7 @@ import type {
   ImportRunEntity,
   OrderListSort,
   OrderLineEntity,
+  OrderLineFields,
   OrderSummaryEntity,
   OrderSummaryListQuery,
   OrderSummaryListResult,
@@ -38,6 +39,9 @@ export interface OrderSummaryRepository {
 
 export interface OrderLineRepository {
   createMany(input: CreateOrderLineInput[]): Promise<OrderLineEntity[]>;
+  findExistingRowFingerprints(
+    candidates: OrderLineDeduplicationCandidate[],
+  ): Promise<Set<string>>;
   list(filter?: {
     importRunId?: string;
     orderId?: string;
@@ -50,6 +54,11 @@ export interface DataStore {
   importRuns: ImportRunRepository;
   orders: OrderSummaryRepository;
   orderLines: OrderLineRepository;
+}
+
+export interface OrderLineDeduplicationCandidate {
+  rowFingerprint: string;
+  fields: OrderLineFields;
 }
 
 function toEntity<T extends { _id: unknown }>(
@@ -168,6 +177,39 @@ export function createMongoDataStore(): DataStore {
         const docs = await OrderLineModel.insertMany(input);
         return docs.map((doc) => toEntity(doc.toObject()) as OrderLineEntity);
       },
+      async findExistingRowFingerprints(candidates) {
+        const uniqueCandidates = uniqueRowFingerprintCandidates(candidates);
+        if (uniqueCandidates.length === 0) {
+          return new Set();
+        }
+
+        const rowFingerprints = uniqueCandidates.map(
+          (candidate) => candidate.rowFingerprint,
+        );
+        const docs = await OrderLineModel.find(
+          { rowFingerprint: { $in: rowFingerprints } },
+          { rowFingerprint: 1, _id: 0 },
+        ).lean();
+
+        const existingFingerprints = new Set(
+          docs
+            .map((doc) => doc.rowFingerprint)
+            .filter(
+              (rowFingerprint): rowFingerprint is string =>
+                typeof rowFingerprint === "string",
+            ),
+        );
+
+        const unmatchedCandidates = uniqueCandidates.filter(
+          (candidate) => !existingFingerprints.has(candidate.rowFingerprint),
+        );
+        const legacyMatches = await findLegacyLineMatches(unmatchedCandidates);
+        for (const rowFingerprint of legacyMatches) {
+          existingFingerprints.add(rowFingerprint);
+        }
+
+        return existingFingerprints;
+      },
       async list(filter = {}) {
         const docs = await OrderLineModel.find(filter)
           .sort({ rowNumber: 1 })
@@ -189,6 +231,97 @@ export function getDefaultDataStore(): DataStore {
   }
 
   return defaultStore;
+}
+
+const orderLineDeduplicationFields = [
+  "sourceOrderId",
+  "sourceLineId",
+  "salesChannel",
+  "sku",
+  "asin",
+  "productTitle",
+  "variantTitle",
+  "quantity",
+  "unitPriceAmount",
+  "lineSubtotalAmount",
+  "lineTaxAmount",
+  "lineDiscountAmount",
+  "currency",
+  "lineStatus",
+] as const satisfies readonly (keyof OrderLineFields)[];
+
+function uniqueRowFingerprintCandidates(
+  candidates: OrderLineDeduplicationCandidate[],
+): OrderLineDeduplicationCandidate[] {
+  return [
+    ...new Map(
+      candidates.map((candidate) => [candidate.rowFingerprint, candidate]),
+    ).values(),
+  ];
+}
+
+async function findLegacyLineMatches(
+  candidates: OrderLineDeduplicationCandidate[],
+): Promise<Set<string>> {
+  if (candidates.length === 0) {
+    return new Set();
+  }
+
+  const docs = await OrderLineModel.find(
+    {
+      $and: [
+        {
+          $or: [
+            { rowFingerprint: { $exists: false } },
+            { rowFingerprint: null },
+          ],
+        },
+        {
+          $or: candidates.map((candidate) =>
+            toOrderLineExactMatchFilter(candidate.fields),
+          ),
+        },
+      ],
+    },
+    Object.fromEntries(orderLineDeduplicationFields.map((field) => [field, 1])),
+  ).lean();
+
+  const legacyMatches = new Set<string>();
+  for (const candidate of candidates) {
+    if (docs.some((doc) => lineFieldsMatch(doc, candidate.fields))) {
+      legacyMatches.add(candidate.rowFingerprint);
+    }
+  }
+
+  return legacyMatches;
+}
+
+function toOrderLineExactMatchFilter(
+  fields: OrderLineFields,
+): Record<string, unknown> {
+  return {
+    $and: orderLineDeduplicationFields.map((field) => {
+      const value = fields[field];
+      if (value === undefined) {
+        return {
+          $or: [{ [field]: { $exists: false } }, { [field]: null }],
+        };
+      }
+
+      return { [field]: value };
+    }),
+  };
+}
+
+function lineFieldsMatch(
+  doc: Record<string, unknown>,
+  fields: OrderLineFields,
+): boolean {
+  return orderLineDeduplicationFields.every((field) => {
+    const expected = fields[field];
+    const actual = doc[field];
+    return expected === undefined ? actual == null : actual === expected;
+  });
 }
 
 const orderSearchFields = [

@@ -4,6 +4,7 @@ const orderLineSchema = new Schema(
   {
     importRunId: { type: String, required: true, index: true },
     orderId: { type: String, required: true, index: true },
+    rowFingerprint: { type: String, required: true },
     sourceOrderId: { type: String, required: true, index: true },
     sourceLineId: { type: String },
     salesChannel: { type: String, required: true },
@@ -26,6 +27,8 @@ const orderLineSchema = new Schema(
     versionKey: false,
   },
 );
+
+orderLineSchema.index({ rowFingerprint: 1 }, { unique: true, sparse: true });
 
 export const OrderLineModel =
   models.OrderLine ?? model("OrderLine", orderLineSchema, "order_lines");

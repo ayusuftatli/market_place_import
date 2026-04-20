@@ -135,6 +135,7 @@ export interface OrderLineEntity extends OrderLineFields {
   id: string;
   importRunId: string;
   orderId: string;
+  rowFingerprint: string;
   sourceRecord: Record<string, unknown>;
   rowNumber: number;
   createdAt: Date;
@@ -182,6 +183,7 @@ export interface ImportRunEntity {
   totalRecords: number;
   validRecords: number;
   invalidRecords: number;
+  duplicateRecords: number;
   storedOrderCount: number;
   storedLineCount: number;
   errors: RowValidationError[];
@@ -237,6 +239,7 @@ export interface CreateImportRunInput {
   totalRecords: number;
   validRecords: number;
   invalidRecords: number;
+  duplicateRecords: number;
   storedOrderCount: number;
   storedLineCount: number;
   errors: RowValidationError[];
@@ -251,6 +254,7 @@ export interface CreateOrderSummaryInput extends OrderSummaryFields {
 export interface CreateOrderLineInput extends OrderLineFields {
   importRunId: string;
   orderId: string;
+  rowFingerprint: string;
   sourceRecord: Record<string, unknown>;
   rowNumber: number;
 }
@@ -269,6 +273,7 @@ export interface ImportPipelineResult {
   totalRecords: number;
   validRecords: number;
   invalidRecords: number;
+  duplicateRecords: number;
   storedOrderCount: number;
   storedLineCount: number;
   errors: RowValidationError[];

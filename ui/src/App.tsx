@@ -786,6 +786,10 @@ export function App() {
                       value={result.invalidRecords}
                       tone="bad"
                     />
+                    <Metric
+                      label="Duplicates"
+                      value={result.duplicateRecords}
+                    />
                     <Metric label="Orders" value={result.orderPreview.length} />
                     <Metric label="Lines" value={result.linePreview.length} />
                     <Metric label="Stored" value={result.storedOrderCount} />
