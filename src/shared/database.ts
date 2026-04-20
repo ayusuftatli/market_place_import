@@ -9,10 +9,28 @@ export async function connectToDatabase(uri = process.env.MONGODB_URI): Promise<
     await mongoose.connect(uri);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to connect to MongoDB at ${uri}: ${message}`);
+    throw new Error(
+      `Failed to connect to MongoDB at ${redactMongoUri(uri)}: ${message}`,
+    );
   }
 }
 
 export async function disconnectFromDatabase(): Promise<void> {
   await mongoose.disconnect();
+}
+
+function redactMongoUri(uri: string): string {
+  try {
+    const parsedUri = new URL(uri);
+    if (parsedUri.username) {
+      parsedUri.username = "redacted";
+    }
+    if (parsedUri.password) {
+      parsedUri.password = "redacted";
+    }
+
+    return parsedUri.toString();
+  } catch {
+    return "redacted MongoDB URI";
+  }
 }

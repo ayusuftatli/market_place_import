@@ -594,7 +594,6 @@ export function App() {
             <div className="section-title">
               <div>
                 <p className="eyebrow">Templates</p>
-                <h2>Choose a source lane</h2>
               </div>
               <button
                 className="ghost"
@@ -672,8 +671,7 @@ export function App() {
             <div className="import-panel">
               <div className="section-title">
                 <div>
-                  <p className="eyebrow">Import</p>
-                  <h2>Source file</h2>
+                  <p className="eyebrow">Import Source File</p>
                 </div>
                 <button
                   className="ghost"
@@ -831,7 +829,6 @@ export function App() {
           <div className="section-title">
             <div>
               <p className="eyebrow">Stored orders</p>
-              <h2>Explore MongoDB orders</h2>
             </div>
             <button
               className="ghost"

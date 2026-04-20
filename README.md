@@ -15,7 +15,7 @@ It reads Amazon, Shopify, and generic spreadsheet-style exports, turns messy row
 
 ## Running Locally
 
-You need Node.js 18 or newer and a MongoDB database.
+You need Node.js 20.19 or newer and a MongoDB database.
 
 ```bash
 npm install
@@ -60,3 +60,14 @@ Use them in the UI to try the preview and commit flow without preparing your own
 - `GET /orders/:id/lines`
 
 For most local work, the UI is the easiest way to test the full flow.
+
+## Deploying To Railway
+
+This app can run as one Railway web service.
+
+- Build command: `npm run build`
+- Start command: `npm start`
+- Required variable: `MONGODB_URI`
+- Health check path: `/health`
+
+Do not set `PORT` unless you have a specific reason; Railway provides it automatically. If you use MongoDB Atlas, allow Railway to reach the cluster and put the Atlas connection string in `MONGODB_URI`. If you deploy a Railway MongoDB template, copy that connection string into `MONGODB_URI`.

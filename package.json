@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "description": "Client-facing marketplace import portal for Amazon, Shopify, and spreadsheet order exports",
   "main": "index.js",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "dev": "node scripts/dev.mjs",
     "dev:api": "tsx watch src/server.ts",
     "dev:ui": "vite --config ui/vite.config.ts",
-    "build": "tsc && tsc -p ui/tsconfig.json && vite build --config ui/vite.config.ts",
+    "build": "npm run clean && tsc && tsc -p ui/tsconfig.json && vite build --config ui/vite.config.ts",
     "start": "node dist/server.js",
     "lint": "tsc --noEmit && tsc -p ui/tsconfig.json --noEmit",
     "format": "prettier --write .",

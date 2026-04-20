@@ -287,7 +287,6 @@ const builtInTemplates = {
   shopify: {
     key: "shopify",
     label: "Shopify Order Export",
-    description: "Multi-line order export with carry-forward for repeated rows.",
     templateVersion: 1,
     acceptedFileKinds: ["csv", "excel"],
     sampleFileName: "shopify-orders-export.csv",
@@ -584,7 +583,6 @@ const builtInTemplates = {
   generic: {
     key: "generic",
     label: "Generic Spreadsheet",
-    description: "Flexible spreadsheet import for partner or agency exports.",
     templateVersion: 1,
     acceptedFileKinds: ["csv", "tsv", "json", "excel"],
     sampleFileName: "generic-marketplace-orders.csv",
